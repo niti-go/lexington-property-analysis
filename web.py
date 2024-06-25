@@ -12,16 +12,13 @@ df = pd.DataFrame(columns=["Location", "Acct#", "Current Assessment", "Building 
                            "Instrument", "Ownership History", "Year Built", 
                            "Living Area", "Replacement Cost", "Building Percent Good", 
                            "Replacement Cost Less Depreciation", "Building Attributes", 
-                           "Building Sub-Areas","Extra Features","Current Valuation",
+                           "Building Sub-Areas","Extra Features",
                             "Land Use Code", "Land Description",
                              "Land Zone", "Neighborhood", "Alt Land Appr", "Land Category",
                              "Land Size (Sqr Feet)", "Land Frontage", "Land Depth",
                             "Land Assessed Value", "Outbuildings", "Valuation History"
                            ])
-small_df = pd.DataFrame(columns=["Location", "Acct#", "Current Assessment", "Building Count", 
-                           "Mblu",  "PID", "Owner", "Co-Owner", "Owner Address", 
-                           "Sale Price", "Certificate", "Book & Page", "Sale Date", 
-                           "Instrument", "Ownership History", "Year Built"])
+
 counter = 0
 
 #Function to remove links that don't lead to a street page
@@ -154,8 +151,8 @@ for i in street_letters:
           if "&nbsp" not in description_text:
             bldg_attr[style_text] = description_text
 
-      #bld_sub_areas = ins.get_text() if ins else None
-      #extra_fts = 
+
+
       ld_use_code = soup.find(id="MainContent_lblUseCode").get_text()
       ld_description = soup.find(id="MainContent_lblUseCodeDescription").get_text()
       ld_zone = soup.find(id="MainContent_lblZone").get_text()
@@ -167,6 +164,78 @@ for i in street_letters:
       ld_depth = soup.find(id="MainContent_lblDepth").get_text()
       ld_value = soup.find(id="MainContent_lblLndAsmt").get_text()
                   
+      #A dictionary where the keys are building area codes, such as FBM, 
+      #and values are tuples, where the first element is the Gross Area
+      #and the second element is the Living Area
+      bld_sub_areas = {}
+      sub_areas_tbl = soup.find("table", id="MainContent_ctl01_grdSub")
+      all_rows = sub_areas_tbl.find_all("tr")
+      for one_row in all_rows:
+        if (one_row["class"] != "HeaderStyle") and (one_row["class"] != "FooterStyle"):
+          td_tags = one_row.find_all("td")
+          if(len(td_tags) >= 4):
+            bld_sub_areas[td_tags[0].get_text()] = (td_tags[2].get_text(), td_tags[3].get_text())
+
+      val_hist = pd.DataFrame()
+      val_hist_table = soup.find("table", id="MainContent_grdHistoryValuesAsmt")
+      if val_hist_table:
+        #Get the table's column headers
+        header_tags = val_hist_table.find("tr", class_ = "HeaderStyle")
+        #extract just the th tags
+        header_tags = header_tags.find_all("th", scope="col")
+        for header in header_tags:
+          #Add header (e.g. "Land") to the dataframe
+          val_hist[header.get_text()] = None
+        white_rows = own_hist_table.find_all("tr", class_ = "RowStyle")
+        for white_row in white_rows:
+          white_td_tags = white_row.find_all("td")
+          new_row = {}
+          for column, tag in zip(val_hist.columns, white_td_tags):
+            text = tag.get_text()
+            if "&nbsp" not in text:
+              new_row[column] = text
+          val_hist = val_hist._append(new_row, ignore_index=True)
+          #print(new_row)
+        gray_rows = own_hist_table.find_all("tr", class_ = "AltRowStyle")
+        for gray_row in gray_rows:
+          gray_td_tags = gray_row.find_all("td")
+          new_row = {}
+          for column, tag in zip(own_hist.columns, gray_td_tags):
+            text = tag.get_text()
+            if "&nbsp" not in text:
+              new_row[column] = text
+          val_hist = val_hist._append(new_row, ignore_index=True)
+          try:
+            val_hist.sort_values(by=["Valuation Year"])
+          except:
+            print("Exception occured when sorting valuation history.")
+
+        extra_fts = []
+        try:
+          extra_fts_table = soup.find("table", id="MainContent_grdXf")
+          if extra_fts_table:
+            tr_tags = extra_fts_table.find_all("tr")
+            for tr_tag in tr_tags:
+              if (tr_tag["class"] == "RowStyle") or (tr_tag["class"] == "AltRowStyle"):
+                #Find the first cell in the row, e.g. "FPL" for fireplace, and append it to extra_fts
+                td_tag = tr_tag.find("td")
+                extra_fts.append(td_tag.get_text())
+        except:
+          print("Exception occured when retreiving extra features.")
+
+      outblds = []
+      try:
+        outblds_table = soup.find("table", id="MainContent_grdOb")
+        if outblds_table:
+          tr_tags = outblds_table.find_all("tr")
+          for tr_tag in tr_tags:
+            if  (tr_tag["class"] == "RowStyle") or (tr_tag["class"] == "AltRowStyle"):
+              #Find the first cell in the row, e.g. "FPL" for fireplace, and append it to extra_fts
+                td_tag = tr_tag.find("td")
+                outblds.append(td_tag.get_text())
+      except:
+        print("Exception occured when retreiving outbuildings.")
+
       row["Location"] = location
       row["Acct#"] = acct
       row["Current Assessment"] = assessment
@@ -198,12 +267,12 @@ for i in street_letters:
       row["Land Frontage"] = ld_frontage
       row["Land Depth"] = ld_depth
       row["Land Assessed Value"] = ld_value
-      row["Building Sub-Areas"] = NotImplemented
-      row["Extra Features"] = NotImplemented
+      row["Building Sub-Areas"] = bld_sub_areas
+      row["Extra Features"] = extra_fts
+      row["Valuation History"] = val_hist
+      row["Outbuildings"] = outblds
 
-
-
-      small_df = small_df._append(row, ignore_index=True)
+      df = df._append(row, ignore_index=True)
       counter+=1
       if counter==15:
         break
@@ -212,4 +281,4 @@ for i in street_letters:
   if counter==15:
     break
 
-small_df.to_csv("output.csv")
+df.to_csv("output.csv")
