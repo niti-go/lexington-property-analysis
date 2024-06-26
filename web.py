@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import string
+import re
 import pandas as pd
 
 #Disable SSL certificate verification warnings
@@ -80,6 +81,7 @@ for i in street_letters:
       row = {}
       location = soup.find(id="MainContent_lblLocation").get_text()
       print(location)
+      print(counter)
       acct = soup.find(id="MainContent_lblAcctNum").get_text()
       assessment = soup.find(id="MainContent_lblGenAssessment").get_text()
       bld_count = soup.find(id="MainContent_lblBldCount").get_text()
@@ -94,65 +96,11 @@ for i in street_letters:
       sl_date = soup.find(id="MainContent_lblSaleDate").get_text()
       ins = soup.find(id="MainContent_lblInstrument")
       ins = ins.get_text() if ins else None
-
-      own_hist = pd.DataFrame()
-      own_hist_table = soup.find("table", id="MainContent_grdSales")
-      if own_hist_table:
-        #Get the table's column headers
-        header_tags = own_hist_table.find("tr", class_ = "HeaderStyle")
-        #extract just the th tags
-        header_tags = header_tags.find_all("th", scope="col")
-        for header in header_tags:
-          #Add header (e.g. "Instrument") to the dataframe
-          own_hist[header.get_text()] = None
-        white_rows = own_hist_table.find_all("tr", class_ = "RowStyle")
-        for white_row in white_rows:
-          white_td_tags = white_row.find_all("td")
-          new_row = {}
-          for column, tag in zip(own_hist.columns, white_td_tags):
-            text = tag.get_text()
-            if "&nbsp" not in text:
-              new_row[column] = text
-          own_hist = own_hist._append(new_row, ignore_index=True)
-          #print(new_row)
-        gray_rows = own_hist_table.find_all("tr", class_ = "AltRowStyle")
-        for gray_row in gray_rows:
-          gray_td_tags = gray_row.find_all("td")
-          new_row = {}
-          for column, tag in zip(own_hist.columns, gray_td_tags):
-            text = tag.get_text()
-            if "&nbsp" not in text:
-              new_row[column] = text
-          own_hist = own_hist._append(new_row, ignore_index=True)
-
       yr_blt = soup.find(id="MainContent_ctl01_lblYearBuilt").get_text()
       lvg_area = soup.find(id="MainContent_ctl01_lblBldArea").get_text()
       rplce_cost = soup.find(id="MainContent_ctl01_lblRcn").get_text()
       bld_pc_good = soup.find(id="MainContent_ctl01_lblPctGood").get_text()
       rplce_cost_lsdep = soup.find(id="MainContent_ctl01_lblRcnld").get_text()
-
-      bldg_attr = {}
-      bldg_attr_table = soup.find("table", id="MainContent_ctl01_grdCns")
-      if bldg_attr_table:
-        white_rows = bldg_attr_table.find_all("tr", class_ = "RowStyle")
-        for white_row in white_rows:
-          white_td_tags = white_row.find_all("td")
-          style, description = white_td_tags
-          style_text = style.get_text()
-          description_text=description.get_text()
-          if "&nbsp" not in description_text:
-            bldg_attr[style_text] = description_text
-        gray_rows = bldg_attr_table.find_all("tr", class_ = "AltRowStyle")
-        for gray_row in gray_rows:
-          gray_td_tags = gray_row.find_all("td")
-          style, description = gray_td_tags
-          style_text = style.get_text()
-          description_text=description.get_text()
-          if "&nbsp" not in description_text:
-            bldg_attr[style_text] = description_text
-
-
-
       ld_use_code = soup.find(id="MainContent_lblUseCode").get_text()
       ld_description = soup.find(id="MainContent_lblUseCodeDescription").get_text()
       ld_zone = soup.find(id="MainContent_lblZone").get_text()
@@ -163,66 +111,151 @@ for i in street_letters:
       ld_frontage = soup.find(id="MainContent_lblLndFront").get_text()
       ld_depth = soup.find(id="MainContent_lblDepth").get_text()
       ld_value = soup.find(id="MainContent_lblLndAsmt").get_text()
+
+      #Owner history of a house is itself a dataframe
+      own_hist = pd.DataFrame()
+      try:
+        own_hist_table = soup.find("table", id="MainContent_grdSales")
+        if own_hist_table:
+          #Get the table's column headers
+          header_tags = own_hist_table.find("tr", class_ = "HeaderStyle")
+          #extract just the th tags
+          header_tags = header_tags.find_all("th", scope="col")
+          for header in header_tags:
+            #Add header (e.g. "Instrument") to the dataframe
+            own_hist[header.get_text()] = None
+          white_rows = own_hist_table.find_all("tr", class_ = "RowStyle")
+          for white_row in white_rows:
+            white_td_tags = white_row.find_all("td")
+            new_row = {}
+            for column, tag in zip(own_hist.columns, white_td_tags):
+              text = tag.get_text()
+              if "&nbsp" not in text:
+                new_row[column] = text
+            own_hist = own_hist._append(new_row, ignore_index=True)
+            #print(new_row)
+          gray_rows = own_hist_table.find_all("tr", class_ = "AltRowStyle")
+          for gray_row in gray_rows:
+            gray_td_tags = gray_row.find_all("td")
+            new_row = {}
+            for column, tag in zip(own_hist.columns, gray_td_tags):
+              text = tag.get_text()
+              if "&nbsp" not in text:
+                new_row[column] = text
+            own_hist = own_hist._append(new_row, ignore_index=True)
+      except Exception as e:
+        print("Exception occured in retrieving owner history data.")
+        print(e)
+
+      #bld_attr is a dictionary where the keys are headers, such as Style  
+      #and Model, and values are the actual attributes, such as Contempory
+      bldg_attr = {}
+      try:
+        bldg_attr_table = soup.find("table", id="MainContent_ctl01_grdCns")
+        if bldg_attr_table:
+          white_rows = bldg_attr_table.find_all("tr", class_ = "RowStyle")
+          for white_row in white_rows:
+            white_td_tags = white_row.find_all("td")
+            style, description = white_td_tags
+            style_text = style.get_text()
+            description_text=description.get_text()
+            if "&nbsp" not in description_text:
+              bldg_attr[style_text] = description_text
+          gray_rows = bldg_attr_table.find_all("tr", class_ = "AltRowStyle")
+          for gray_row in gray_rows:
+            gray_td_tags = gray_row.find_all("td")
+            style, description = gray_td_tags
+            style_text = style.get_text()
+            description_text=description.get_text()
+            if "&nbsp" not in description_text:
+              bldg_attr[style_text] = description_text
+      except Exception as e:
+        print("Exception occured when retrieving building attributes.")
+        print(e)
                   
-      #A dictionary where the keys are building area codes, such as FBM, 
+      #bld_sub_areas is a dictionary where the keys are building area codes, such as FBM, 
       #and values are tuples, where the first element is the Gross Area
       #and the second element is the Living Area
       bld_sub_areas = {}
-      sub_areas_tbl = soup.find("table", id="MainContent_ctl01_grdSub")
-      all_rows = sub_areas_tbl.find_all("tr")
-      for one_row in all_rows:
-        if (one_row["class"] != "HeaderStyle") and (one_row["class"] != "FooterStyle"):
-          td_tags = one_row.find_all("td")
-          if(len(td_tags) >= 4):
-            bld_sub_areas[td_tags[0].get_text()] = (td_tags[2].get_text(), td_tags[3].get_text())
+      try:
+        sub_areas_tbl = soup.find("table", id="MainContent_ctl01_grdSub")
+        all_rows = sub_areas_tbl.find_all("tr")
+        for one_row in all_rows:
+          if (one_row["class"] != "HeaderStyle") and (one_row["class"] != "FooterStyle"):
+            td_tags = one_row.find_all("td")
+            if(len(td_tags) >= 4):
+              try:
+                bld_sub_areas[td_tags[0].get_text()] = (td_tags[2].get_text().strip().replace(",",""), 
+                                                        td_tags[3].get_text().strip().replace(",",""))
+              except Exception as e:
+                 print("Exception occured when retrieving one building sub-area.")
+                 print(e)
+              # print ("\n", td_tags[0].get_text())
+              # print ("\n", re.findall(r'\b\d{1,3}(?:,\d{3})*\b', td_tags[2].get_text()))
+              # print ("\n", re.findall(r'\b\d{1,3}(?:,\d{3})*\b', td_tags[3].get_text()))
+              # print ("\n", td_tags[0].get_text().strip())
+              # print ("\n", td_tags[2].get_text().strip().replace(",",""))
+              # print ("\n", td_tags[3].get_text().strip().replace(",",""))
+              # print("\n", td_tags[0])
+              # print("\n", td_tags[2])
+              # print("\n", td_tags[3])
+      except Exception as e:
+        print("Exception occured when retrieving building sub-areas.")
+        print(e)
 
+      #Valuation history of a house is itself a dataframe
       val_hist = pd.DataFrame()
-      val_hist_table = soup.find("table", id="MainContent_grdHistoryValuesAsmt")
-      if val_hist_table:
-        #Get the table's column headers
-        header_tags = val_hist_table.find("tr", class_ = "HeaderStyle")
-        #extract just the th tags
-        header_tags = header_tags.find_all("th", scope="col")
-        for header in header_tags:
-          #Add header (e.g. "Land") to the dataframe
-          val_hist[header.get_text()] = None
-        white_rows = own_hist_table.find_all("tr", class_ = "RowStyle")
-        for white_row in white_rows:
-          white_td_tags = white_row.find_all("td")
-          new_row = {}
-          for column, tag in zip(val_hist.columns, white_td_tags):
-            text = tag.get_text()
-            if "&nbsp" not in text:
-              new_row[column] = text
-          val_hist = val_hist._append(new_row, ignore_index=True)
-          #print(new_row)
-        gray_rows = own_hist_table.find_all("tr", class_ = "AltRowStyle")
-        for gray_row in gray_rows:
-          gray_td_tags = gray_row.find_all("td")
-          new_row = {}
-          for column, tag in zip(own_hist.columns, gray_td_tags):
-            text = tag.get_text()
-            if "&nbsp" not in text:
-              new_row[column] = text
-          val_hist = val_hist._append(new_row, ignore_index=True)
-          try:
-            val_hist.sort_values(by=["Valuation Year"])
-          except:
-            print("Exception occured when sorting valuation history.")
+      try:
+        val_hist_table = soup.find("table", id="MainContent_grdHistoryValuesAsmt")
+        if val_hist_table:
+          #Get the table's column headers
+          header_tags = val_hist_table.find("tr", class_ = "HeaderStyle")
+          #extract just the th tags
+          header_tags = header_tags.find_all("th", scope="col")
+          for header in header_tags:
+            #Add header (e.g. "Land") to the dataframe
+            val_hist[header.get_text()] = None
+          #The tables have white rows and gray rows
+          white_rows = own_hist_table.find_all("tr", class_ = "RowStyle")
+          for white_row in white_rows:
+            white_td_tags = white_row.find_all("td")
+            new_row = {}
+            for column, tag in zip(val_hist.columns, white_td_tags):
+              text = tag.get_text()
+              if "&nbsp" not in text:
+                new_row[column] = text
+            val_hist = val_hist._append(new_row, ignore_index=True)
+          gray_rows = own_hist_table.find_all("tr", class_ = "AltRowStyle")
+          for gray_row in gray_rows:
+            gray_td_tags = gray_row.find_all("td")
+            new_row = {}
+            for column, tag in zip(own_hist.columns, gray_td_tags):
+              text = tag.get_text()
+              if "&nbsp" not in text:
+                new_row[column] = text
+            val_hist = val_hist._append(new_row, ignore_index=True)
+            try:
+              val_hist.sort_values(by=["Valuation Year"])
+            except:
+              print("Exception occured when sorting valuation history.")
+      except:
+        print("Exception occured in retrieving valuation history.")
 
-        extra_fts = []
-        try:
-          extra_fts_table = soup.find("table", id="MainContent_grdXf")
-          if extra_fts_table:
-            tr_tags = extra_fts_table.find_all("tr")
-            for tr_tag in tr_tags:
-              if (tr_tag["class"] == "RowStyle") or (tr_tag["class"] == "AltRowStyle"):
-                #Find the first cell in the row, e.g. "FPL" for fireplace, and append it to extra_fts
-                td_tag = tr_tag.find("td")
-                extra_fts.append(td_tag.get_text())
-        except:
-          print("Exception occured when retreiving extra features.")
 
+      extra_fts = []
+      try:
+        extra_fts_table = soup.find("table", id="MainContent_grdXf")
+        if extra_fts_table:
+          tr_tags = extra_fts_table.find_all("tr")
+          for tr_tag in tr_tags:
+            if (tr_tag["class"] == "RowStyle") or (tr_tag["class"] == "AltRowStyle"):
+              #Find the first cell in the row, e.g. "FPL" for fireplace, and append it to extra_fts
+              td_tag = tr_tag.find("td")
+              extra_fts.append(td_tag.get_text())
+      except:
+        print("Exception occured when retreiving extra features.")
+
+      #Outbuildings that a house contains will be a list of outbuilding codes (e.g. SHD1 for shed frame)
       outblds = []
       try:
         outblds_table = soup.find("table", id="MainContent_grdOb")
@@ -236,49 +269,54 @@ for i in street_letters:
       except:
         print("Exception occured when retreiving outbuildings.")
 
-      row["Location"] = location
-      row["Acct#"] = acct
-      row["Current Assessment"] = assessment
-      row["Building Count"] = bld_count
-      row["Mblu"] = mblu
-      row["PID"] = pid
-      row["Owner"] = owner
-      row["Co-Owner"] = co_owner
-      row["Owner Address"] = owner_address
-      row["Sale Price"] = sl_price
-      row["Certificate"] = cert
-      row["Book & Page"] = bp
-      row["Sale Date"] = sl_date
-      row["Instrument"] = ins
-      row["Ownership History"] = own_hist
-      row["Year Built"] = yr_blt
-      row["Living Area"] = lvg_area
-      row["Replacement Cost"] = rplce_cost
-      row["Building Percent Good"] = bld_pc_good
-      row["Replacement Cost Less Depreciation"] = rplce_cost_lsdep
-      row["Building Attributes"] = bldg_attr
-      row["Land Use Code"] = ld_use_code
-      row["Land Description"] = ld_description
-      row["Land Zone"] = ld_zone
-      row["Neighborhood"] = nbhd
-      row["Alt Land Appr"] = alt_ld_appr
-      row["Land Category"] = ld_ctg
-      row["Land Size (Sqr Feet)"] = ld_size
-      row["Land Frontage"] = ld_frontage
-      row["Land Depth"] = ld_depth
-      row["Land Assessed Value"] = ld_value
-      row["Building Sub-Areas"] = bld_sub_areas
-      row["Extra Features"] = extra_fts
-      row["Valuation History"] = val_hist
-      row["Outbuildings"] = outblds
+      try:
+        row["Location"] = location
+        row["Acct#"] = acct
+        row["Current Assessment"] = assessment
+        row["Building Count"] = bld_count
+        row["Mblu"] = mblu
+        row["PID"] = pid
+        row["Owner"] = owner
+        row["Co-Owner"] = co_owner
+        row["Owner Address"] = owner_address
+        row["Sale Price"] = sl_price
+        row["Certificate"] = cert
+        row["Book & Page"] = bp
+        row["Sale Date"] = sl_date
+        row["Instrument"] = ins
+        row["Ownership History"] = own_hist
+        row["Year Built"] = yr_blt
+        row["Living Area"] = lvg_area
+        row["Replacement Cost"] = rplce_cost
+        row["Building Percent Good"] = bld_pc_good
+        row["Replacement Cost Less Depreciation"] = rplce_cost_lsdep
+        row["Building Attributes"] = bldg_attr
+        row["Land Use Code"] = ld_use_code
+        row["Land Description"] = ld_description
+        row["Land Zone"] = ld_zone
+        row["Neighborhood"] = nbhd
+        row["Alt Land Appr"] = alt_ld_appr
+        row["Land Category"] = ld_ctg
+        row["Land Size (Sqr Feet)"] = ld_size
+        row["Land Frontage"] = ld_frontage
+        row["Land Depth"] = ld_depth
+        row["Land Assessed Value"] = ld_value
+        row["Building Sub-Areas"] = bld_sub_areas
+        row["Extra Features"] = extra_fts
+        row["Valuation History"] = val_hist
+        row["Outbuildings"] = outblds
 
-      df = df._append(row, ignore_index=True)
+        df = df._append(row, ignore_index=True)
+      except Exception as e:
+        print("Exception occured in adding house row to dataframe.")
+        print(e)
+
       counter+=1
-      if counter==15:
+      if counter==200:
         break
-    if counter==15:
+    if counter==200:
       break
-  if counter==15:
+  if counter==200:
     break
 
 df.to_csv("output.csv")
