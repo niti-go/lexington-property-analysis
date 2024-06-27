@@ -3,10 +3,11 @@ import requests
 import string
 import re
 import pandas as pd
+import time
 
 #Disable SSL certificate verification warnings
 requests.packages.urllib3.disable_warnings()
-
+num=0
 df = pd.DataFrame(columns=["Location", "Acct#", "Current Assessment", "Building Count", 
                            "Mblu",  "PID", "Owner", "Co-Owner", "Owner Address", 
                            "Sale Price", "Certificate", "Book & Page", "Sale Date", 
@@ -42,6 +43,7 @@ def has_link_to_house(link):
   else:
     return False
 
+
 street_letters = "123456789"+string.ascii_uppercase
 
 #Loop through pages containing streets that begin with a certain letter
@@ -72,9 +74,11 @@ for i in street_letters:
     house_links = filter(has_link_to_house, house_links)
 
     for anchor_tag in house_links: #anchor_tag is a tag such as <a href="Parcel.aspx?pid=123">10 LEE RD</a>
+      start = time.perf_counter()
       house_pid = anchor_tag["href"] #anchor_tag["href"] returns the pid part of the tag (our URL route)
       houseURL = f"https://gis.vgsi.com/lexingtonma/{house_pid}"
       house_page = requests.get(houseURL, verify=False)
+      load = time.perf_counter()
       soup = BeautifulSoup(house_page.content, "html.parser")
 
       #Parse the page of the house
@@ -216,7 +220,7 @@ for i in street_letters:
             #Add header (e.g. "Land") to the dataframe
             val_hist[header.get_text()] = None
           #The tables have white rows and gray rows
-          white_rows = own_hist_table.find_all("tr", class_ = "RowStyle")
+          white_rows = val_hist_table.find_all("tr", class_ = "RowStyle")
           for white_row in white_rows:
             white_td_tags = white_row.find_all("td")
             new_row = {}
@@ -225,11 +229,11 @@ for i in street_letters:
               if "&nbsp" not in text:
                 new_row[column] = text
             val_hist = val_hist._append(new_row, ignore_index=True)
-          gray_rows = own_hist_table.find_all("tr", class_ = "AltRowStyle")
+          gray_rows = val_hist_table.find_all("tr", class_ = "AltRowStyle")
           for gray_row in gray_rows:
             gray_td_tags = gray_row.find_all("td")
             new_row = {}
-            for column, tag in zip(own_hist.columns, gray_td_tags):
+            for column, tag in zip(val_hist.columns, gray_td_tags):
               text = tag.get_text()
               if "&nbsp" not in text:
                 new_row[column] = text
@@ -248,10 +252,10 @@ for i in street_letters:
         if extra_fts_table:
           tr_tags = extra_fts_table.find_all("tr")
           for tr_tag in tr_tags:
-            if (tr_tag["class"] == "RowStyle") or (tr_tag["class"] == "AltRowStyle"):
+            if (tr_tag["class"] == ["RowStyle"]) or (tr_tag["class"] == ["AltRowStyle"]):
               #Find the first cell in the row, e.g. "FPL" for fireplace, and append it to extra_fts
-              td_tag = tr_tag.find("td")
-              extra_fts.append(td_tag.get_text())
+              td_tag = tr_tag.find_all("td")
+              extra_fts.append(td_tag[0].get_text())
       except:
         print("Exception occured when retreiving extra features.")
 
@@ -262,7 +266,7 @@ for i in street_letters:
         if outblds_table:
           tr_tags = outblds_table.find_all("tr")
           for tr_tag in tr_tags:
-            if  (tr_tag["class"] == "RowStyle") or (tr_tag["class"] == "AltRowStyle"):
+            if  (tr_tag["class"] == ["RowStyle"]) or (tr_tag["class"] == ["AltRowStyle"]):
               #Find the first cell in the row, e.g. "FPL" for fireplace, and append it to extra_fts
                 td_tag = tr_tag.find("td")
                 outblds.append(td_tag.get_text())
@@ -312,11 +316,16 @@ for i in street_letters:
         print(e)
 
       counter+=1
-      if counter==200:
-        break
-    if counter==200:
-      break
-  if counter==200:
-    break
+      end=time.perf_counter()
+      #print(f"Loading website took {load-start} s and adding row took {end-load} additional s.")
+      #write to a file every 500 houses
+      if counter==10:
+        df.to_csv(f"output{num}.csv")
+        counter = 0
+        num+=1
+    #if counter==500:
+      #break
+  #if counter==500:
+    #break
 
 df.to_csv("output.csv")
