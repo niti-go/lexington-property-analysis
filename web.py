@@ -320,7 +320,10 @@ def main():
       with futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         executor.map(add_house_data, house_URLS)
 
-  df.to_csv("output.csv")
+      
+    df.to_csv(f"data/street{i}.csv") #After each street letter, write to csv file
+
+  df.to_csv("all_data.csv") #Write the final df to csv
 
 if __name__ == "__main__":
   main()
