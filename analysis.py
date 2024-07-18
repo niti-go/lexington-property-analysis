@@ -36,25 +36,29 @@ vo_addresses= changes[changes["Overlay District"] == "VO"]
 mfo_addresses= changes[changes["Overlay District"] == "MFO"]
 vho_addresses= changes[changes["Overlay District"] == "VHO"]
 
-def filter_data_by_zone(zone_addresses):
-  df = pd.DataFrame()
-  print(f"\n\nAdding zoned properties to new dataframe...")
+properties["Overlay District"] = None
+
+def add_overlay_districts(properties, zone_addresses, new_zone):
+  """
+  For each address in zone_addresses, finds that property's row in 
+  the propereties dataframe and changes the Overlay District value from None to new_zone.
+  """
+  print(f"\n\nChanging overlay districts for new zones...")
   #Loop through each house who is being changed to this zone
   for _, row in zone_addresses.iterrows():
     address = row["Site Address"]
-    #Find the data-filled rows for this house from the town's full data
+    #Find the row for this house
     matched_property = properties[properties["Location"] == address]
     if not matched_property.empty:
-        #Add the house's data to the new dataframe
-        df = pd.concat([df, matched_property])
+      #Modify that property's overlay district
+      matched_property["Overlay District"] = new_zone
     else:
-        print(f"Didn't find {address} in properties")
-  return df
+      print(f"Didn't find {address} in properties")
 
-# New dataframes that contains all the property data for each row of these houses
-vo_houses = filter_data_by_zone(vo_addresses)
-mfo_houses = filter_data_by_zone(mfo_addresses)
-vho_houses = filter_data_by_zone(vho_addresses)
+# Modify the "Overlay District" column of affected properties to their new zone
+add_overlay_districts(properties, vo_addresses, "VO")
+add_overlay_districts(properties, mfo_addresses, "MFO")
+add_overlay_districts(properties, vho_addresses, "VHO")
 
 #Add some addresses in manually that didn't perfectly have matching names
 vo_ads = ["32 MASSACHUSETTS AVE #1", "32 MASSACHUSETTS AVE #2", "38 MASSACHUSETTS AVE", 
@@ -71,16 +75,15 @@ vo_ads = ["32 MASSACHUSETTS AVE #1", "32 MASSACHUSETTS AVE #2", "38 MASSACHUSETT
 for i in range(3, 25):
    vo_ads.append(f"{i} LOIS LN")
 matched_properties = properties[properties["Location"].isin(vo_ads)]
-vo_houses = pd.concat([vo_houses, matched_properties])
+matched_properties["Overlay District"] = "VO"
 
 mfo_ads = ["2-4 WALLIS CT #4", "2-4 WALLIS CT #2", "52A WALTHAM ST", "52B WALTHAM ST", 
            "1775 MASSACHUSETTS AVE #1","1775 MASSACHUSETTS AVE #2","1775 MASSACHUSETTS AVE #3",
            "1775 MASSACHUSETTS AVE #4","10 MERIAM ST"]
 for i in range(1, 23):
-   vo_ads.append(f"10 MUZZEY ST #{i}")
+   mfo_ads.append(f"10 MUZZEY ST #{i}")
 matched_properties = properties[properties["Location"].isin(mfo_ads)]
-mfo_houses = pd.concat([mfo_houses, matched_properties])
-
+matched_properties["Overlay District"] = "MFO"
 
 def percent_dif(a, b):
   """
@@ -111,7 +114,7 @@ def assessment_chgs(vh):
   #Remove "$" and "," from entries and convert them to numeric types
   for col in ['Improvements', 'Land', 'Total']:
         vh[col] = vh[col].astype(str).str.replace('[$,]', '', regex=True)
-        vh[col] = pd.to_numeric(vh[col])
+        vh[col] = pd.to_numeric(vh[col], errors="coerce")
 
   print("Dataframe after conversion:")
   print(vh)
@@ -130,27 +133,12 @@ def assessment_chgs(vh):
   total = percent_dif(from_row["Total"].iloc[0], to_row["Total"].iloc[0])
   return (improv, land, total)
 
-#Create new columns for each new zone category containing information
-#About changes in assessments from 2023 to 2024
-vo_houses["All Changes"] = vo_houses["Valuation History"].apply(assessment_chgs)
-mfo_houses["All Changes"] = mfo_houses["Valuation History"].apply(assessment_chgs)
-vho_houses["All Changes"] = vho_houses["Valuation History"].apply(assessment_chgs)
+#Create new column containing information about percent changes in assessments from 2023 to 2024
+properties["All Changes"] = properties["Valuation History"].apply(assessment_chgs)
 
 #Separate the three calculated percentage values into 3 columns
-for df in (vo_houses, mfo_houses, vho_houses):
-  df["Improvements"] = df["All Changes"].apply(lambda tuple: tuple[0])
-  df["Land"] = df["All Changes"].apply(lambda tuple: tuple[1])
-  df["Total"] = df["All Changes"].apply(lambda tuple: tuple[2])
-# vo_houses["Improvements"] = vo_houses["All Changes"].apply(lambda tuple: tuple[0])
-# mfo_houses["Improvements"] = mfo_houses["All Changes"].apply(lambda tuple: tuple[0])
-# vho_houses["Improvements"] = vho_houses["All Changes"].apply(lambda tuple: tuple[0])
+properties["Improvements"] = properties["All Changes"].apply(lambda tuple: tuple[0])
+properties["Land"] = properties["All Changes"].apply(lambda tuple: tuple[1])
+properties["Total"] = properties["All Changes"].apply(lambda tuple: tuple[2])
 
-# vo_houses["Land"] = vo_houses["All Changes"].apply(lambda tuple: tuple[1])
-# mfo_houses["Land"] = mfo_houses["All Changes"].apply(lambda tuple: tuple[1])
-# vho_houses["Land"] = vho_houses["All Changes"].apply(lambda tuple: tuple[1])
-
-# vo_houses["Total"] = vo_houses["All Changes"].apply(lambda tuple: tuple[2])
-# mfo_houses["Total"] = mfo_houses["All Changes"].apply(lambda tuple: tuple[2])
-# vho_houses["Total"] = vho_houses["All Changes"].apply(lambda tuple: tuple[2])
-
-print(vo_houses[["Location", "Improvements", "Land", "Total"]])
+print(properties[["Location", "Improvements", "Land", "Total"]])
