@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 #import plotly.graph_objects as go
 
-df = pd.read_csv ("all_data.csv")
+df = pd.read_csv ("Data/all_data.csv")
 
 #Remove '$' and ',' from current assessment column
 df["Current Assessment"] = df["Current Assessment"].str.replace("$","").str.replace(",","")
