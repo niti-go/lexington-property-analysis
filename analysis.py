@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from io import StringIO
+from io import StringIO #to convert strings into pandas dataframes
+import ast #to convert strings into dictionary
 #import plotly.graph_objects as go
 
 """
@@ -116,15 +117,16 @@ def assessment_chgs(vh):
         vh[col] = vh[col].astype(str).str.replace('[$,]', '', regex=True)
         vh[col] = pd.to_numeric(vh[col], errors="coerce")
 
-  print("Dataframe after conversion:")
-  print(vh)
+  #print("Dataframe after conversion:")
+  #print(vh)
 
   vh["Year"] = pd.to_numeric(vh["Year"])
   from_row = vh[vh["Year"] == 2023]
   to_row = vh[vh["Year"] == 2024]
 
   if len(from_row) != 1 or len(to_row) != 1: #something's wrong with the valuation history table
-     print("Valuation History table doesn't include 2023 and 2024")
+     print("Valuation History table doesn't include 2023 and/or 2024")
+     print(vh)
      return (None, None, None)
   
   #iloc[0] essentially converts the 1-element series to just the value
@@ -141,4 +143,16 @@ properties["Improvements"] = properties["All Changes"].apply(lambda tuple: tuple
 properties["Land"] = properties["All Changes"].apply(lambda tuple: tuple[1])
 properties["Total"] = properties["All Changes"].apply(lambda tuple: tuple[2])
 
-print(properties[["Location", "Improvements", "Land", "Total"]])
+#print(properties[["Location", "Improvements", "Land", "Total"]])
+
+def get_model_type (str_dict):
+   """
+   Returns the value of the "Model" key in str_dict, assuming str_dict is a 
+   string containing Building Attributes with similar format as: 
+   "{"Style": "Colonial", "Model": "Residential", ...}"
+   """
+   attributes = ast.literal_eval(str_dict)
+   return attributes.get("Model")
+   
+properties["Building Model"] = properties["Building Attributes"].apply(get_model_type)
+print(properties["Building Model"].value_counts())
