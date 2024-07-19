@@ -48,13 +48,9 @@ def add_overlay_districts(properties, zone_addresses, new_zone):
   #Loop through each house who is being changed to this zone
   for _, row in zone_addresses.iterrows():
     address = row["Site Address"]
-    #Find the row for this house
-    matched_property = properties[properties["Location"] == address]
-    if not matched_property.empty:
-      #Modify that property's overlay district
-      matched_property["Overlay District"] = new_zone
-    else:
-      print(f"Didn't find {address} in properties")
+    #Find the row that matches this property and modify its overlay district
+    condition = properties["Location"] == address
+    properties.loc[condition, "Overlay District"] = new_zone
 
 # Modify the "Overlay District" column of affected properties to their new zone
 add_overlay_districts(properties, vo_addresses, "VO")
@@ -75,16 +71,14 @@ vo_ads = ["32 MASSACHUSETTS AVE #1", "32 MASSACHUSETTS AVE #2", "38 MASSACHUSETT
        ]
 for i in range(3, 25):
    vo_ads.append(f"{i} LOIS LN")
-matched_properties = properties[properties["Location"].isin(vo_ads)]
-matched_properties["Overlay District"] = "VO"
+properties.loc[properties["Location"].isin(vo_ads), "Overlay District"] = "VO"
 
 mfo_ads = ["2-4 WALLIS CT #4", "2-4 WALLIS CT #2", "52A WALTHAM ST", "52B WALTHAM ST", 
            "1775 MASSACHUSETTS AVE #1","1775 MASSACHUSETTS AVE #2","1775 MASSACHUSETTS AVE #3",
            "1775 MASSACHUSETTS AVE #4","10 MERIAM ST"]
 for i in range(1, 23):
    mfo_ads.append(f"10 MUZZEY ST #{i}")
-matched_properties = properties[properties["Location"].isin(mfo_ads)]
-matched_properties["Overlay District"] = "MFO"
+properties.loc[properties["Location"].isin(mfo_ads), "Overlay District"] = "MFO"
 
 def percent_dif(a, b):
   """
@@ -96,7 +90,7 @@ def percent_dif(a, b):
         print(f"NaN value encountered: a = {a}, b = {b}")
         return None
     if a == 0 or b == 0:
-        print("One or more of the values is 0.")
+        #print("One or more of the values is 0.")
         return None
     return ((b - a) / a) * 100
   except Exception as e:
@@ -126,7 +120,7 @@ def assessment_chgs(vh):
 
   if len(from_row) != 1 or len(to_row) != 1: #something's wrong with the valuation history table
      print("Valuation History table doesn't include 2023 and/or 2024")
-     print(vh)
+     #print(vh)
      return (None, None, None)
   
   #iloc[0] essentially converts the 1-element series to just the value
@@ -156,3 +150,6 @@ def get_model_type (str_dict):
    
 properties["Building Model"] = properties["Building Attributes"].apply(get_model_type)
 print(properties["Building Model"].value_counts())
+
+#Save a view of our new columns of interest to a csv for further analysis
+properties[["Location", "Building Model", "Overlay District","Improvements", "Land", "Total"]].to_csv("Data/analysis_data.csv")
