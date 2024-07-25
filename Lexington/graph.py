@@ -36,13 +36,14 @@ df.loc[is_our_house, "Overlay District"] = "Our House"
 
 category_order = ["Our House","None", "VO", "VHO", "MFO"]
 
-fig1 = px.box(df, x="Overlay District", y="Land", points="all", color="Building Model",
-              labels={"Land": "Percent Change in Land Value"},
-              title="Percent Change in Lexington Property Assessed Values From 2023 to 2024",
-              hover_name="Location",
-              category_orders={"Overlay District": category_order})
-fig1.update_layout(yaxis_range=[8, 12])  
-fig1.show()
+## Percent Change in Land Value Graph
+# fig1 = px.box(df, x="Overlay District", y="Land", points="all", color="Building Model",
+#               labels={"Land": "Percent Change in Land Value"},
+#               title="Percent Change in Lexington Property Assessed Values From 2023 to 2024",
+#               hover_name="Location",
+#               category_orders={"Overlay District": category_order})
+# fig1.update_layout(yaxis_range=[8, 12])  
+# fig1.show()
 
 fig2 = px.box(df, x="Overlay District", y="Improvements", 
               points="all", color="Building Model",
