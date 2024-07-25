@@ -6,7 +6,7 @@ import pandas as pd
 import time
 from concurrent import futures
 from threading import Lock
-from features import features_lst
+from Lexington.features import features_lst
 
 df = pd.DataFrame(columns=features_lst)
 lock = Lock() #each thread must aquire the lock to add a house row to the global dataframe
