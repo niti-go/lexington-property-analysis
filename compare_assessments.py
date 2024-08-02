@@ -96,7 +96,6 @@ df["Year Built"] = pd.to_numeric(df["Year Built"], errors="coerce").fillna(0).as
 
 
 app = dash.Dash(__name__)
-print("app created")
 
 def main_program(your_house_row):
     global fig1
@@ -140,32 +139,32 @@ def main_program(your_house_row):
     similar_sales = similar_sales[(similar_sales['Sale Price'] > 1000)] #Remove transactions
     #print(similar_sales[["Location", "Living Area", "Year Built", "Sale Year", "Sale Price", "Current Assessment"]])
 
-    #Plot similar houses
-    fig1=go.Figure(data=go.Scatter(x=similar_sales["Living Area"], y=similar_sales["Sale Price"], 
-                                    mode='markers', marker=dict(
-                                        size=10, color='purple',
-                                        opacity=0.8, reversescale=True),text=similar_sales.apply(lambda row: f"Address: {row['Location']}<br>Style: {row['Building Style']}<br>Year Built: {row['Year Built']}<br>Building Percent Good: {row['Building Percent Good']}<br>Year Sold: {row['Sale Year']}<br>Sale Price: {row['Sale Price']}", axis=1), name="Recent Sale"))
+    # #Plot similar houses
+    # fig1=go.Figure(data=go.Scatter(x=similar_sales["Living Area"], y=similar_sales["Sale Price"], 
+    #                                 mode='markers', marker=dict(
+    #                                     size=10, color='purple',
+    #                                     opacity=0.8, reversescale=True),text=similar_sales.apply(lambda row: f"Address: {row['Location']}<br>Style: {row['Building Style']}<br>Year Built: {row['Year Built']}<br>Building Percent Good: {row['Building Percent Good']}<br>Year Sold: {row['Sale Year']}<br>Sale Price: {row['Sale Price']}", axis=1), name="Recent Sale"))
 
-    #Set axis titles and formatting
-    fig1.update_layout(margin=dict(l=0, r=0, b=0, t=40),
-            xaxis_title='Living Area (Square Feet)',
-            yaxis_title='Sale Price',
-        title = "Recent Sale Prices of Similar Properties"
-                    )
+    # #Set axis titles and formatting
+    # fig1.update_layout(margin=dict(l=0, r=0, b=0, t=40),
+    #         xaxis_title='Living Area (Square Feet)',
+    #         yaxis_title='Sale Price',
+    #     title = "Recent Sale Prices of Similar Properties"
+    #                 )
 
-    # Add the user's house as a yellow point
-    fig1.add_trace(go.Scatter(
-        x=[your_living_area],
-        y=[your_assessment],
-        mode='markers',
-        marker=dict(
-            size=10,
-            color='goldenrod',
-            opacity=0.9
-        ),
-        name="Your House Assessment",
-        text=f"Address: {your_loc}<br>Style: {your_style}<br>Year Built: {your_yr_blt}<br>Building Percent Good: {your_bpg}"
-    ))
+    # # Add the user's house as a yellow point
+    # fig1.add_trace(go.Scatter(
+    #     x=[your_living_area],
+    #     y=[your_assessment],
+    #     mode='markers',
+    #     marker=dict(
+    #         size=10,
+    #         color='goldenrod',
+    #         opacity=0.9
+    #     ),
+    #     name="Your House Assessment",
+    #     text=f"Address: {your_loc}<br>Style: {your_style}<br>Year Built: {your_yr_blt}<br>Building Percent Good: {your_bpg}"
+    # ))
 
     # -----graph using px----
     # Create the scatter plot with a trendline
@@ -222,24 +221,42 @@ def main_program(your_house_row):
     #     font=dict(size=12)
     # )
 
-    # Extract trendline data
-    trendline_data = fig1.data[1]
-    trendline_x = trendline_data.x
-    trendline_y = trendline_data.y
-    predicted_price = trendline_x * your_living_area + trendline_y
+    #Compare the user's property assessment to the trendline prediction
+    try:
+        # Extract the data from the figure
+        trendline_data = fig1.data[1]  # Assumes the trendline is the second trace
 
-    if predicted_price.all() > your_assessment.all():
-        compare_to_trendline = "lower than"
-    elif predicted_price.all() < your_assessment.all():
-        compare_to_trendline = "higher than"
-    else:
-        compare_to_trendline = "equal to"
+        # Get x and y values of the trendline
+        trendline_x = trendline_data['x']
+        trendline_y = trendline_data['y']
 
-    fig1text = \
-    f"""
-    "All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet. Your property's assessment is {compare_to_trendline} the prices of these other similar houses."
-    If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
-    """
+        # Calculate slope and intercept
+        slope, intercept = np.polyfit(trendline_x, trendline_y, 1)
+
+        print(f"Intercept: {intercept}")
+        print(f"Slope: {slope}")
+        predicted_price = slope * your_living_area + intercept
+        print("Predicted price is ",predicted_price)
+        print(your_assessment)
+        if predicted_price > your_assessment:
+            compare_to_trendline = "lower than"
+        elif predicted_price < your_assessment:
+            compare_to_trendline = "higher than"
+        else:
+            compare_to_trendline = "equal to"
+
+        fig1text = \
+        f"""
+        All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet. Your property's assessment is {compare_to_trendline} the prices of these other similar houses.
+        If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
+        """
+    except Exception:
+        #Something went wrong with the trendline; print default text without comparison
+        fig1text = \
+        f"""
+        All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet.
+        If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
+        """
 
     #fig1.show()
 
@@ -309,7 +326,7 @@ def main_program(your_house_row):
 
     fig2text = \
     f"""
-    (*)Removed outliers for a clearer visualization.
+    * Removed outliers for a clearer visualization.
     Hover over a property to view details.
     """
 
