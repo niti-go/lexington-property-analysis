@@ -419,7 +419,7 @@ if __name__ == '__main__':
         and returns the relevant property rows from df.
         Repeatedly asks until a valid address is provided.
         """
-        your_loc = input("Enter your Lexington property address (e.g. 10 Main St): ").upper()
+        your_loc = input("Enter your Lexington street address (e.g. 10 Main St): ").upper()
         try:
             house_row = df[df['Location'] == your_loc].iloc[0]
             return house_row
