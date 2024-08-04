@@ -19,8 +19,13 @@ I was also curious about the impact of zoning changes, such as that required by 
 - Utilizing various graphs for data exploration. I created a correlation heatmap to isolate the features most correlated with a property's assessment, which helped me determine which kinds of properties to compare assessments with.
 - Combining qualitiative research and statistics to answer a guiding question: What is the effect of zoning on a property's assessment?
 
+## If I had more time, I would:
+
+- Analyze how other factors affect a home's assessment, such as proximity to a school or plot size. A lot of older homes in Lexington are more valuable for their plot size, as they are often torn down, rather than valued for the house itself.
+- Expand the zoning amendment analysis to include more towns. Many Massachusetts towns, not just Lexington, were required to add zoning for multi-family properties. I hypothesize that urban cities like Brookline and Medford would be more affected than residential communities like Lexington, since builders are more likely to profit off of that land.
+
 ## How to Use the Assessment Comparison Tool:
-Navigate to the project directory in your command line.
+Clone the repository and navigate to the project directory in your command line.
 
 Install the required python libraries listed in the `requirements.txt` file using:
 ```
@@ -36,15 +41,3 @@ The program will prompt you to enter a Lexington street address. Some real addre
 - 3 Dudley Rd
 
 A Dash app will be hosted on your local machine, and an address for the server will be provided. Open a web browser and navigate to the address to view the report. [Here is a demo report.](demo_report.mp4)
-
-### For the Zoning Amendment Analysis:
-Run the program using:
-```
-python graph.py
-```
-A graph will be displayed.
-
-## If I had more time, I would:
-
-- Perform the same zoning amendment analysis on more towns. Not only Lexington, but many MA towns were required to add zoning for multi-family properties in 2023 due to a [new state law](https://www.mass.gov/info-details/multi-family-zoning-requirement-for-mbta-communities). I hypothesize that, unlike in a highly residential community like Lexington where multifamily buildings are less profitable to be built, urban cities like Brookline and Medford would be affected more. Builders would see the newly zoned land as valuable in these cities, driving the assessments of existing properties on the land higher.
-- Refactor some of the code, especially this part. 
