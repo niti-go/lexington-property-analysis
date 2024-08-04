@@ -233,11 +233,8 @@ def main_program(your_house_row):
         # Calculate slope and intercept
         slope, intercept = np.polyfit(trendline_x, trendline_y, 1)
 
-        print(f"Intercept: {intercept}")
-        print(f"Slope: {slope}")
+        # Determine how the actual assessment compares to the predicted assessment
         predicted_price = slope * your_living_area + intercept
-        print("Predicted price is ",predicted_price)
-        print(your_assessment)
         if predicted_price > your_assessment:
             compare_to_trendline = "lower than"
         elif predicted_price < your_assessment:
@@ -247,14 +244,14 @@ def main_program(your_house_row):
 
         fig1text = \
         f"""
-        All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet. Your property's assessment is {compare_to_trendline} the prices of these other similar houses.
+        Above: All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet. Your property's assessment is {compare_to_trendline} the prices of these other similar houses.
         If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
         """
     except Exception:
         #Something went wrong with the trendline; print default text without comparison
         fig1text = \
         f"""
-        All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet.
+        Above: All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet.
         If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
         """
 
@@ -264,6 +261,7 @@ def main_program(your_house_row):
     numeric_df = df.select_dtypes(include='number')
     corr_matrix = numeric_df.corr()
     heatmap = sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+    #plt.show() #Show the correlation plot
 
     #Save the heatmap as a base64 image so it can be displayed later on the website
     buffer = io.BytesIO()
@@ -326,8 +324,11 @@ def main_program(your_house_row):
 
     fig2text = \
     f"""
-    * Removed outliers for a clearer visualization.
-    Hover over a property to view details.
+    * Removed outliers for a clearer visualization. Hover over a property to view details.
+    The above graph plots Assessment Value against Living Area and Building Percent Good for all Lexington properties.
+    Generallly, as these factors increase, the assessment value increases.
+    You can see how your property lies compared to all other properties.  If you feel that your property is an outlier without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
+    
     """
 
     #fig2.show()
@@ -383,7 +384,7 @@ def main_program(your_house_row):
 
     fig3text = \
     f"""
-    Lexington's assessment designations of all similar properties, built around the same time period as your property with similar living area measurements.\
+    Above: Lexington's assessment designations of all similar properties, built around the same time period as your property with similar living area measurements.\
     Hover over a property to view details.
 
     Your property's assessment is {comparison}
@@ -394,7 +395,7 @@ def main_program(your_house_row):
     analysis_text = \
     """
     Some background behind this report:
-    The features most correlated with Assessment are Living Area, Building Percent Good, and Year Built, as seen in the heatplot below.
+    The features most correlated with a property's Assessment Value are Living Area, Building Percent Good, and Year Built.
     However, there are many other factors that affect assessment that are not captured in this report, including floor plan layout, kitchen style, number of rooms, extra features such as energy efficiency, distance to the town center and major highways, and historical value.
     For a more holistic understanding of these factors for any house, you can view the Assessor's Database at https://gis.vgsi.com/lexingtonma/.
     """
@@ -419,14 +420,14 @@ def create_layout(your_loc, your_assessment, your_yr_blt, your_living_area, your
         html.H4(f"Building Style: {your_style}"),
         html.H4(f"Building Percent Good: {your_bpg}%"),
 
+        html.P(analysis_text),
         dcc.Graph(figure=fig3), #Boxplot
         html.P(fig3text),
         dcc.Graph(figure=fig1), #Recent Sales
         html.P(fig1text),
         dcc.Graph(figure=fig2), #All Properties
-        html.P(fig2text),
-        html.P(analysis_text),
-        #html.Div([html.Img(src=f"data:image/png;base64,{img_str}")])
+        html.P(fig2text)
+        #html.Div([html.Img(src=f"data:image/png;base64,{img_str}")]) #Correlation Heatplot image
     ])
 
 if __name__ == '__main__':
@@ -436,7 +437,7 @@ if __name__ == '__main__':
         and returns the relevant property rows from df.
         Repeatedly asks until a valid address is provided.
         """
-        your_loc = input("Enter your Lexington street address (e.g. 10 Main St): ").upper()
+        your_loc = input("Enter your Lexington street address (e.g. 1 Appletree Ln): ").upper()
         try:
             house_row = df[df['Location'] == your_loc].iloc[0]
             return house_row
