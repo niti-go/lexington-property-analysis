@@ -2,7 +2,7 @@
 
 I scraped the data of over 12,000 properties from the Town of Lexington's [Public Assessor's Database](https://gis.vgsi.com/lexingtonma/), and used this data for two purposes:
 
-1. Generate a report for any resident that provides analysis for how their property's assessment compares to other properties. [Here is a demo report](Results/demo_report.mp4).
+1. Generate a report for any resident that provides analysis for how their property's assessment compares to other properties. [Here is a demo report](https://drive.google.com/file/d/1iagSQqS7lPHBU__Hr9S5rEggr4MWOAqH/view?usp=sharing).
 
 2. Analyze the impact of a 2023 [zoning amendment](https://www.lexingtonma.gov/DocumentCenter/View/8696/Article-34-Motion-combined?bidId=) to the assessed values of affected properties. [Read my analysis here](Results/Zoning_Analysis_Findings.pdf).
 
@@ -40,4 +40,4 @@ The program will prompt you to enter a Lexington street address. Some real addre
 - 2 Bacon St
 - 3 Dudley Rd
 
-A Dash app will be hosted on your local machine, and an address for the server will be provided. Open a web browser and navigate to the address to view the report. [Here is an example report.](Results/demo_report.mp4)
+A Dash app will be hosted on your local machine, and an address for the server will be provided. Open a web browser and navigate to the address to view the report. [Here is an example report.](https://drive.google.com/file/d/1iagSQqS7lPHBU__Hr9S5rEggr4MWOAqH/view?usp=sharing)
