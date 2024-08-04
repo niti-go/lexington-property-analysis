@@ -8,7 +8,7 @@ I scraped the data of over 12,000 properties from the Town of Lexington's [Publi
 
 ## Why I built this project
 
-Living in Lexington, I noticed our property tax increase significantly from 2023 to 2024, despite no changes to our house. I wanted to determine if this was part of a town-wide trend or unique to our property; if it was the latter, this data could help my parents file an abatement and possibly reduce our taxes. I later realized I could extend this tool to be helpful for any Lexington resident.
+Living in Lexington, I noticed our property tax increased significantly from 2023 to 2024, despite no changes to our house. I wanted to determine if this was part of a town-wide trend or unique to our property; if it was the latter, this data could help us file an abatement and possibly reduce our taxes. I later realized I could extend this tool to be helpful for any Lexington resident.
 
 I was also curious about the impact of zoning changes, such as that required by MA's 2023 law, to a property's value. [I wrote about my research and analysis here.](Results/Zoning_Analysis_Findings.pdf)
 
@@ -22,7 +22,7 @@ I was also curious about the impact of zoning changes, such as that required by 
 ## If I had more time, I would:
 
 - Analyze how other factors affect a home's assessment, such as proximity to a school or plot size. A lot of older homes in Lexington are more valuable for their plot size, as they are often torn down, rather than valued for the house itself.
-- Expand the zoning amendment analysis to include more towns. Many Massachusetts towns, not just Lexington, were required to add zoning for multi-family properties. I hypothesize that urban cities like Brookline and Medford would be more affected than residential communities like Lexington, since builders are more likely to profit off of that land.
+- Expand the zoning amendment analysis to include more towns. Many Massachusetts towns, not just Lexington, were required to add zoning for multi-family properties. I hypothesize that urban cities like Brookline and Medford would be more affected than residential communities like Lexington, since multifamily builders are more likely to profit off of that land.
 
 ## How to Use the Assessment Comparison Tool:
 Clone the repository and navigate to the project directory in your command line.
