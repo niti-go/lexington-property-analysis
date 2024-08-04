@@ -9,12 +9,11 @@ import ast #to convert strings into dictionary
 #import plotly.graph_objects as go
 
 """
-This analysis examines how assessments of certain houses have been affected by Article 34's 
-April 2023 amendment to Lexington's Zoning Bylaw.
+This file prepares the raw scraped property data for further analysis of Lexington's zoning amendment.
 """
 
 properties = pd.read_csv ("Data/all_data.csv")
-changes = pd.read_csv("Data/clean_zone_changes.csv")
+changes = pd.read_csv("Data/zone_changes.csv")
 
 #Remove '$' and ',' from current assessment column
 properties["Current Assessment"] = properties["Current Assessment"].str.replace("$","").str.replace(",","")
@@ -42,7 +41,7 @@ properties["Overlay District"] = None
 def add_overlay_districts(properties, zone_addresses, new_zone):
   """
   For each address in zone_addresses, finds that property's row in 
-  the propereties dataframe and changes the Overlay District value from None to new_zone.
+  the properties dataframe and changes the Overlay District value from None to new_zone.
   """
   print(f"\n\nChanging overlay districts for new zones...")
   #Loop through each house who is being changed to this zone
