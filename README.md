@@ -1,4 +1,4 @@
-# Lexington Assessment Tool and Zoning Amendment Analysis
+# Lexington Property Assessment Tool and Zoning Amendment Analysis
 
 I scraped the data of over 12,000 properties from the Town of Lexington's [Public Assessor's Database](https://gis.vgsi.com/lexingtonma/), and used this data for two purposes:
 
