@@ -40,4 +40,4 @@ The program will prompt you to enter a Lexington street address. Some real addre
 - 2 Bacon St
 - 3 Dudley Rd
 
-A Dash app will be hosted on your local machine, and an address for the server will be provided. Open a web browser and navigate to the address to view the report. [Here is an example report.](https://drive.google.com/file/d/1iagSQqS7lPHBU__Hr9S5rEggr4MWOAqH/view?usp=sharing)
+The app will generate a HTML report and open it in your browser. [Here is an example report.](https://drive.google.com/file/d/1iagSQqS7lPHBU__Hr9S5rEggr4MWOAqH/view?usp=sharing)

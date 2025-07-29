@@ -4,20 +4,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+
 import ast #to convert strings into dictionary
-#For displaying graphs
-import dash
-from dash import dcc, html
 import io
 import base64
-import statsmodels
+import matplotlib
+matplotlib.use('Agg')  # Use a non-interactive backend
+import webbrowser
+import sys
+import os
+
 
 #Load all Lexington property data
 df = pd.read_csv ("Data/all_data.csv")
-
-#Initializing global variables
-fig1 = fig2 = fig3 = 0
-fig1text = fig2text = fig3text = analysis_text = ""
 
 def get_model_type (str_dict):
         """
@@ -94,96 +93,81 @@ df["Building Percent Good"] = pd.to_numeric(df["Building Percent Good"])
 
 df["Year Built"] = pd.to_numeric(df["Year Built"], errors="coerce").fillna(0).astype(int)
 
-
-app = dash.Dash(__name__)
+#------------Main Program Logic-------------
 
 def main_program(your_house_row):
-    global fig1
-    global fig2
-    global fig3
-    global fig1text
-    global fig2text
-    global fig3text
-    global analysis_text
     global df
+    print("Debug: Entered main_program")
+    print(f"Debug: your_house_row: {your_house_row}")
 
     #--------Get The User's House--------
-    #your_house_row = get_user_address(df)
     your_loc = your_house_row["Location"]
+    print(f"Debug: your_loc: {your_loc}")
     your_bpg = your_house_row["Building Percent Good"]
+    print(f"Debug: your_bpg: {your_bpg}")
     your_assessment = your_house_row["Current Assessment"]
+    print(f"Debug: your_assessment: {your_assessment}")
     your_yr_blt = your_house_row["Year Built"]
+    print(f"Debug: your_yr_blt: {your_yr_blt}")
     your_style = your_house_row["Building Style"]
+    print(f"Debug: your_style: {your_style}")
     your_living_area = your_house_row["Living Area"]
+    print(f"Debug: your_living_area: {your_living_area}")
 
     #---------Display Similar Sales Scatterplot--------
-
-    #Get all houses with similar Living Area and Year Built that sold in the past year.
     yr_blt = your_house_row["Year Built"]
-    nearby_yrs = [i for i in range(yr_blt-7, yr_blt+8)] #built within +/- 7 years of user's house
+    nearby_yrs = [i for i in range(yr_blt-7, yr_blt+8)]
+    print(f"Debug: nearby_yrs: {nearby_yrs}")
     similar = df[df['Year Built'].isin(nearby_yrs)]
+    print(f"Debug: similar properties count: {len(similar)}")
 
-    #Unless the user's property is an apartment, remove apartments from 
-    #dataframe as these are outliers with extreme assessments, and are not individual residences.
     if (your_style != "Apartments"):
         similar = similar[similar["Building Style"] != "Apartments"]
+        print(f"Debug: similar properties after removing apartments: {len(similar)}")
 
     living_area = your_house_row["Living Area"]
-    max_area = living_area+300  
-    min_area = living_area-300  
+    max_area = living_area+300
+    min_area = living_area-300
     similar = similar[(similar['Living Area'] >= min_area) & (similar['Living Area'] <= max_area)]
+    print(f"Debug: similar properties after living area filter: {len(similar)}")
 
     #houses sold this year
-    recent_yrs = [2022, 2023,2024]
+    recent_yrs = [2022, 2023, 2024]
     similar_sales = similar[(similar['Sale Year'].isin(recent_yrs))]
-    similar_sales = similar_sales[(similar_sales['Sale Price'] > 1000)] #Remove transactions
-    #print(similar_sales[["Location", "Living Area", "Year Built", "Sale Year", "Sale Price", "Current Assessment"]])
+    similar_sales = similar_sales[(similar_sales['Sale Price'] > 1000)]
+    print(f"Debug: similar_sales count: {len(similar_sales)}")
 
-    # #Plot similar houses
-    # fig1=go.Figure(data=go.Scatter(x=similar_sales["Living Area"], y=similar_sales["Sale Price"], 
-    #                                 mode='markers', marker=dict(
-    #                                     size=10, color='purple',
-    #                                     opacity=0.8, reversescale=True),text=similar_sales.apply(lambda row: f"Address: {row['Location']}<br>Style: {row['Building Style']}<br>Year Built: {row['Year Built']}<br>Building Percent Good: {row['Building Percent Good']}<br>Year Sold: {row['Sale Year']}<br>Sale Price: {row['Sale Price']}", axis=1), name="Recent Sale"))
+    # Debugging after similar_sales count
+    print(f"Debug: similar_sales DataFrame: {similar_sales}")
 
-    # #Set axis titles and formatting
-    # fig1.update_layout(margin=dict(l=0, r=0, b=0, t=40),
-    #         xaxis_title='Living Area (Square Feet)',
-    #         yaxis_title='Sale Price',
-    #     title = "Recent Sale Prices of Similar Properties"
-    #                 )
+    # Check if similar_sales is empty
+    if similar_sales.empty:
+        print("Debug: similar_sales is empty")
+    else:
+        print("Debug: similar_sales is not empty")
 
-    # # Add the user's house as a yellow point
-    # fig1.add_trace(go.Scatter(
-    #     x=[your_living_area],
-    #     y=[your_assessment],
-    #     mode='markers',
-    #     marker=dict(
-    #         size=10,
-    #         color='goldenrod',
-    #         opacity=0.9
-    #     ),
-    #     name="Your House Assessment",
-    #     text=f"Address: {your_loc}<br>Style: {your_style}<br>Year Built: {your_yr_blt}<br>Building Percent Good: {your_bpg}"
-    # ))
-
-    # -----graph using px----
-    # Create the scatter plot with a trendline
-    fig1 = px.scatter(
-        similar_sales,
-        x="Living Area",
-        y="Sale Price",
-        trendline="ols",
-        title="Recent Similar House Sales",
-        labels={"Living Area": "Living Area (Square Feet)", "Sale Price": "Sale Price"},
-        opacity=0.8,
-        hover_data={
-            'Location': True, 
-            'Building Style': True, 
-            'Year Built': True, 
-            'Building Percent Good': True, 
-            'Current Assessment': True
-        }
-    )
+    # Attempt to create the scatter plot
+    try:
+        fig1 = px.scatter(
+            similar_sales,
+            x="Living Area",
+            y="Sale Price",
+            trendline="ols",
+            title="Recent Similar House Sales",
+            labels={"Living Area": "Living Area (Square Feet)", "Sale Price": "Sale Price"},
+            opacity=0.8,
+            hover_data={
+                'Location': True, 
+                'Building Style': True, 
+                'Year Built': True, 
+                'Building Percent Good': True, 
+                'Current Assessment': True
+            }
+        )
+        print("Debug: Scatter plot created successfully")
+    except Exception as e:
+        print(f"Debug: Error while creating scatter plot: {e}")
+        raise
 
     # Update the color of the points to purple
     fig1.update_traces(marker=dict(size=10, color='purple'))
@@ -394,59 +378,80 @@ def main_program(your_house_row):
 
     analysis_text = \
     """
-    Some background behind this report:
-    The features most correlated with a property's Assessment Value are Living Area, Building Percent Good, and Year Built.
+    Some background behind this report:\n
+    Based on some data analysis I did, the features most correlated with a property's Assessment Value are Living Area, Building Percent Good, and Year Built.
     However, there are many other factors that affect assessment that are not captured in this report, including floor plan layout, kitchen style, number of rooms, extra features such as energy efficiency, distance to the town center and major highways, and historical value.
     For a more holistic understanding of these factors for any house, you can view the Assessor's Database at https://gis.vgsi.com/lexingtonma/.
     """
 
-    return your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg
-
-#------------Display Graphs---------
-
-# app.layout = html.Div([
-#     html.H1("Test Layout"),
-#     html.P("This is a test paragraph.")
-# ])
+    return your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg, fig1, fig1text, fig2, fig2text, fig3, fig3text, analysis_text
 
 
-def create_layout(your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg):
-    return html.Div([
-        html.H1(f"{your_loc.title()} Assessment Report"),
-        html.H5(f"Created by Niti Goyal"),
-        html.H4(f"2024 Assessment: ${your_assessment:,.2f}"),
-        html.H4(f"Year Built: {your_yr_blt}"),
-        html.H4(f"Living Area (Sq. Feet): {your_living_area:,}"),
-        html.H4(f"Building Style: {your_style}"),
-        html.H4(f"Building Percent Good: {your_bpg}%"),
+# ----------- Standalone Local Script -----------
+def main():
+    print("Welcome to the Lexington Property Report Generator!")
+    address = input("Enter your property address (as it appears in the database): ").strip().upper()
+    house_row = df[df['Location'] == address]
+    if house_row.empty:
+        print("Error: The entered property address does not exist in the database.")
+        sys.exit(1)
+    house_row = house_row.iloc[0]
+    print(f"Generating report for {address}...")
+    (
+        your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg,
+        fig1, fig1text, fig2, fig2text, fig3, fig3text, analysis_text
+    ) = main_program(house_row)
 
-        html.P(analysis_text),
-        dcc.Graph(figure=fig3), #Boxplot
-        html.P(fig3text),
-        dcc.Graph(figure=fig1), #Recent Sales
-        html.P(fig1text),
-        dcc.Graph(figure=fig2), #All Properties
-        html.P(fig2text)
-        #html.Div([html.Img(src=f"data:image/png;base64,{img_str}")]) #Correlation Heatplot image
-    ])
+    html_content = f"""
+    <html>
+    <head>
+        <title>Property Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }}
+            h1 {{ color: #333; }}
+            p {{ margin: 10px 0; }}
+            .section {{ margin-bottom: 20px; }}
+            .chart {{ margin: 20px 0; max-width: 800px; margin-left: auto; margin-right: auto; }}
+            .caption {{ font-size: 0.9em; color: grey; margin-top: 10px; margin-bottom: 10px; text-align: center; }}
+        </style>
+    </head>
+    <body>
+        <h1>Property Report (2023-2024) for {your_loc}</h1>
+        <div class="section">
+            <h2>Property Details</h2>
+            <p><strong>Assessment:</strong> {your_assessment}</p>
+            <p><strong>Year Built:</strong> {your_yr_blt}</p>
+            <p><strong>Living Area:</strong> {your_living_area} sq ft</p>
+            <p><strong>Style:</strong> {your_style}</p>
+            <p><strong>Building Percent Good:</strong> {your_bpg}%</p>
+        </div>
+        <div class="section">
+            <h2>Analysis</h2>
+            <p>{analysis_text}</p>
+        </div>
+        <div class="section chart">
+            <h2>Recent Similar House Sales</h2>
+            {fig1.to_html(full_html=False)}
+            <p class="caption">{fig1text}</p>
+        </div>
+        <div class="section chart">
+            <h2>All Lexington Residences</h2>
+            {fig2.to_html(full_html=False)}
+            <p class="caption">{fig2text}</p>
+        </div>
+        <div class="section chart">
+            <h2>Similar Properties Assessments</h2>
+            {fig3.to_html(full_html=False)}
+            <p class="caption">{fig3text}</p>
+        </div>
+    </body>
+    </html>
+    """
+    output_file = "property_report.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_content)
+    print(f"Report generated: {output_file}")
+    webbrowser.open(f"file://{os.path.abspath(output_file)}")
 
-if __name__ == '__main__':
-    def get_user_address(df):
-        """
-        Asks the user for their Lexington property address 
-        and returns the relevant property rows from df.
-        Repeatedly asks until a valid address is provided.
-        """
-        your_loc = input("Enter your Lexington street address (e.g. 1 Appletree Ln): ").upper()
-        try:
-            house_row = df[df['Location'] == your_loc].iloc[0]
-            return house_row
-        except Exception as e:
-            print("Couldn't find your house in Lexington's database.")
-            return get_user_address(df)
-
-    house_row = get_user_address(df)
-
-    your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg = main_program(house_row)
-    app.layout = create_layout(your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg)
-    app.run_server(debug=True)
+if __name__ == "__main__":
+    main()
