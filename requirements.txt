@@ -1,8 +1,8 @@
-flask
-pandas
-seaborn
-matplotlib
-numpy
-plotly
-beautifulsoup4
-requests
+flask==3.0.3
+gunicorn==22.0.0
+pandas==2.2.2
+numpy==1.26.4
+plotly==5.22.0
+matplotlib==3.9.0
+seaborn==0.13.2
+statsmodels==0.14.2
