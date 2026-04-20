@@ -3,29 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assessment Report</title>
+    <title>{{ your_loc }} — Assessment Report</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>{{ your_loc }} Assessment Report</h1>
-    <h5>Created by Niti Goyal</h5>
-    <h4>2024 Assessment: ${{ your_assessment }}</h4>
-    <h4>Year Built: {{ your_yr_blt }}</h4>
-    <h4>Living Area (Sq. Feet): {{ your_living_area }}</h4>
-    <h4>Building Style: {{ your_style }}</h4>
-    <h4>Building Percent Good: {{ your_bpg }}%</h4>
+    <main>
+        <p><a href="{{ url_for('index') }}">← Search another address</a></p>
 
-    <p>{{ analysis_text }}</p>
+        <h1>{{ your_loc }}</h1>
+        <p class="subtitle">2024 Assessment Report</p>
 
-    <h3>Boxplot</h3>
-    {{ fig3|safe }}
-    <p>{{ fig3text }}</p>
+        <section class="property-details">
+            <dl>
+                <dt>2024 Assessment</dt>
+                <dd>${{ your_assessment }}</dd>
 
-    <h3>Recent Sales</h3>
-    {{ fig1|safe }}
-    <p>{{ fig1text }}</p>
+                <dt>Year Built</dt>
+                <dd>{{ your_yr_blt }}</dd>
 
-    <h3>All Properties</h3>
-    {{ fig2|safe }}
-    <p>{{ fig2text }}</p>
+                <dt>Living Area</dt>
+                <dd>{{ your_living_area }} sq ft</dd>
+
+                <dt>Building Style</dt>
+                <dd>{{ your_style }}</dd>
+
+                <dt>Building Percent Good</dt>
+                <dd>{{ your_bpg }}%</dd>
+            </dl>
+        </section>
+
+        <section>
+            <h2>About this report</h2>
+            <p>{{ analysis_text }}</p>
+        </section>
+
+        <section class="chart">
+            <h2>Similar Properties</h2>
+            {{ fig3|safe }}
+            <p class="caption">{{ fig3text }}</p>
+        </section>
+
+        <section class="chart">
+            <h2>Recent Similar Sales</h2>
+            {{ fig1|safe }}
+            <p class="caption">{{ fig1text }}</p>
+        </section>
+
+        <section class="chart">
+            <h2>All Lexington Residences</h2>
+            {{ fig2|safe }}
+            <p class="caption">{{ fig2text }}</p>
+        </section>
+
+        <footer>
+            <p>
+                Built by Niti Goyal ·
+                <a href="{{ github_url }}" target="_blank" rel="noopener">View source on GitHub</a>
+            </p>
+        </footer>
+    </main>
 </body>
 </html>

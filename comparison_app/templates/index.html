@@ -3,17 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Property Assessment</title>
+    <title>Lexington Property Assessment Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Enter Your Property Address</h1>
-    <form method="POST">
-        <label for="address">Address:</label>
-        <input type="text" id="address" name="address" required>
-        <button type="submit">Submit</button>
-    </form>
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
+    <main>
+        <h1>Lexington Property Assessment Tool</h1>
+        <p class="intro">
+            This tool analyzes how a Lexington, MA property's 2024 assessment compares to
+            similar homes in town, using data I scraped from the
+            <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">Town of Lexington's Public Assessor's Database</a>.
+            Enter a Lexington address to see your property's assessment against recent sales
+            of similar houses, all town residences, and properties built around the same time
+            with similar living area.
+        </p>
+
+        <form method="POST" class="address-form">
+            <label for="address">Property address</label>
+            <input type="text"
+                   id="address"
+                   name="address"
+                   placeholder="e.g. 1 AARON RD"
+                   value="{{ submitted or '' }}"
+                   required
+                   autofocus>
+            <button type="submit">Generate Report</button>
+        </form>
+
+        {% if error %}
+            <p class="error">{{ error }}</p>
+            {% if suggestions %}
+                <ul class="suggestions">
+                    {% for s in suggestions %}
+                        <li>
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="address" value="{{ s }}">
+                                <button type="submit" class="link-button">{{ s }}</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endif %}
+
+        <section class="examples">
+            <h2>Try an example</h2>
+            <ul class="example-list">
+                {% for ex in examples %}
+                    <li>
+                        <form method="POST" class="inline">
+                            <input type="hidden" name="address" value="{{ ex }}">
+                            <button type="submit" class="link-button">{{ ex }}</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <footer>
+            <p>
+                Built by Niti Goyal ·
+                <a href="{{ github_url }}" target="_blank" rel="noopener">View source on GitHub</a>
+            </p>
+            <p class="note">First request after inactivity may take ~30 seconds while the server wakes up.</p>
+        </footer>
+    </main>
 </body>
 </html>
