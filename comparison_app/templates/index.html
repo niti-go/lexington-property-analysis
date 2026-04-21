@@ -39,7 +39,10 @@
                            autofocus>
                     <ul id="suggestions" class="suggest-dropdown" role="listbox" hidden></ul>
                 </div>
-                <button type="submit">Compare my home</button>
+                <button type="submit">
+                    <span class="btn-label">Compare my home</span>
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                </button>
             </div>
             <p class="example-hint">
                 <span class="example-label">Try:</span>
@@ -48,6 +51,7 @@
                 {% endfor %}
             </p>
         </form>
+
 
         <script>
             (function () {
@@ -146,6 +150,16 @@
                 // Select on focus too, so clicking back into a pre-filled input highlights it.
                 input.addEventListener("focus", () => {
                     if (input.value) input.select();
+                });
+
+                // Show inline spinner in the submit button on any form submit
+                document.querySelectorAll("form").forEach((f) => {
+                    f.addEventListener("submit", () => {
+                        f.classList.add("is-loading");
+                        f.querySelectorAll("button[type='submit']").forEach((b) => {
+                            b.disabled = true;
+                        });
+                    });
                 });
             })();
         </script>
