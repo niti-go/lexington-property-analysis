@@ -1,4 +1,4 @@
-# Lexington Property Assessment Tool and Zoning Amendment Analysis
+# Lexington Property Comparison Tool and Zoning Amendment Analysis
 
 ### Use my home comparison tool [here!](https://lexington-property-analysis.onrender.com/)
 <p align="center">
