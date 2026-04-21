@@ -1,0 +1,170 @@
+<article class="report" id="report">
+    <h1>{{ your_loc }}</h1>
+
+    <!-- Headline verdict -->
+    <section class="verdict">
+        <div class="verdict-top">
+            <div class="verdict-big">
+                <span class="verdict-label">2024 Assessment</span>
+                <span class="verdict-value">${{ your_assessment }}</span>
+            </div>
+            {% if sparkline %}
+            <div class="sparkline" aria-label="Assessment value over the last {{ sparkline.points|length }} years">
+                <span class="sparkline-label">Valuation history</span>
+                <div class="sparkline-chart">
+                    <div class="sparkline-svg-wrap">
+                        {% for p in sparkline.points %}
+                            <span class="sparkline-value {% if loop.last %}is-latest{% endif %}"
+                                  style="left: {{ p.x }}%; top: {{ (p.y / 40 * 100) }}%;">
+                                {{ p.total_short }}
+                            </span>
+                        {% endfor %}
+                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img">
+                            <path d="{{ sparkline.path }}" fill="none" stroke="#a7a1ff" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        {% for p in sparkline.points %}
+                            <span class="sparkline-dot {% if loop.last %}is-latest{% endif %}"
+                                  style="left: {{ p.x }}%; top: {{ (p.y / 40 * 100) }}%;"></span>
+                        {% endfor %}
+                    </div>
+                    <div class="sparkline-years">
+                        {% for p in sparkline.points %}
+                            <span style="left: {{ p.x }}%;">{{ p.year }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <p class="verdict-headline">{{ verdict.headline }}.</p>
+        <p class="verdict-detail">
+            Of {{ verdict.num_similar }} similar homes (built {{ verdict.yr_range }},
+            {{ verdict.area_range }} sq ft), yours ranks
+            <strong>#{{ verdict.rank }}</strong> by assessment
+            ({{ verdict.percentile }}th percentile).
+            Median for similar homes: <strong>${{ verdict.median_similar_formatted }}</strong>.
+        </p>
+    </section>
+
+    <!-- Methodology toggle -->
+    <section class="toggles">
+        <details>
+            <summary>Why only compare Living Area and Year Built?</summary>
+            <div class="toggle-body">
+                <p>
+                    When I started this project, my instinct was to compare homes on as many
+                    features as possible — bedrooms, land size, zoning, sale history. But the
+                    Lexington <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">assessor's database</a>
+                    publishes 35+ fields per property, and most of them either
+                    don't vary meaningfully across homes or duplicate information in other fields.
+                </p>
+                <p>
+                    So I computed a correlation heatmap across every numeric feature against the
+                    property's 2024 Assessment. Three features stood out:
+                </p>
+                <ul>
+                    <li><strong>Living Area</strong> — the strongest single predictor</li>
+                    <li><strong>Building Percent Good</strong> — how depreciated the home is (a proxy for age + condition)</li>
+                    <li><strong>Year Built</strong> — correlated with both design era and neighborhood development patterns</li>
+                </ul>
+                <p>
+                    That's why this tool defines "similar homes" as ones built within 7 years of
+                    yours and within 300 sq ft of your living area. Other features either weren't
+                    predictive enough to justify narrowing the comparison pool, or weren't captured
+                    in the town's public data at all (floor plan quality, kitchen condition,
+                    energy efficiency, proximity to schools).
+                </p>
+                <figure class="heatmap">
+                    <img src="{{ url_for('static', filename='correlation_heatmap.png') }}"
+                         alt="Correlation heatmap showing Living Area, Building Percent Good, and Year Built as the strongest predictors of Assessment Value">
+                    <figcaption>
+                        Correlation between every numeric feature in Lexington's
+                        <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">assessor's database</a>
+                        and 2024 Assessment Value. Values closer to 1 (coral) or −1 (indigo)
+                        indicate a stronger relationship.
+                    </figcaption>
+                </figure>
+            </div>
+        </details>
+    </section>
+
+    <!-- Property details -->
+    <section class="property-details">
+        <h2>Property Details</h2>
+        <dl>
+            <dt>Year Built</dt>
+            <dd>{{ your_yr_blt }}</dd>
+
+            <dt>Living Area</dt>
+            <dd>{{ your_living_area }} sq ft</dd>
+
+            <dt>Building Style</dt>
+            <dd>{{ your_style }}</dd>
+
+            <dt>
+                Building Percent Good
+                <span class="info-tip" tabindex="0" role="button"
+                      aria-label="What does Building Percent Good mean?">
+                    <span class="info-icon" aria-hidden="true">i</span>
+                    <span class="info-tooltip" role="tooltip">
+                        A town metric estimating how much of the home's original value remains
+                        after depreciation. 100% = brand new; lower values reflect age and
+                        wear. It's a proxy for the home's age and condition.
+                    </span>
+                </span>
+            </dt>
+            <dd>{{ your_bpg }}%</dd>
+        </dl>
+    </section>
+
+    <!-- Comparables -->
+    {% if comparables %}
+    <section>
+        <h2>Most Similar Recent Sales</h2>
+        <p class="section-intro">Three homes closest to yours in living area that sold in the last three years.</p>
+        <div class="comparables">
+            {% for c in comparables %}
+            <div class="comparable-card">
+                <div class="comparable-address">{{ c.location }}</div>
+                <div class="comparable-price">Sold for ${{ c.sale_price_formatted }}{% if c.sale_year %} in {{ c.sale_year }}{% endif %}</div>
+                <div class="comparable-meta">
+                    {{ c.living_area_formatted }} sq ft · Built {{ c.year_built }} · {{ c.style }}
+                </div>
+                <div class="comparable-meta muted">
+                    2024 Assessment: ${{ c.assessment_formatted }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Chart: similar properties distribution -->
+    <section class="chart">
+        <h2>Similar Properties Assessments</h2>
+        {{ fig3|safe }}
+        <p class="caption">{{ fig3text }}</p>
+    </section>
+
+    <!-- Chart: recent sales -->
+    <section class="chart">
+        <h2>Recent Similar Sales</h2>
+        {{ fig1|safe }}
+        <p class="caption">{{ fig1text }}</p>
+    </section>
+
+    <!-- About this report -->
+    <section>
+        <h2>About this report</h2>
+        <p>{{ analysis_text }}
+           <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">assessor's database</a>.
+        </p>
+    </section>
+
+    <!-- Chart: 3D explorer -->
+    <section class="chart">
+        <h2>Explore All Lexington Residences</h2>
+        {{ fig2|safe }}
+        <p class="caption">{{ fig2text }}</p>
+    </section>
+</article>

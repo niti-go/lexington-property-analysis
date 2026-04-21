@@ -3,32 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lexington Property Assessment Tool</title>
+    <title>Is your Lexington home overvalued?</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <main>
-        <h1>Lexington Property Assessment Tool</h1>
-        <p class="intro">
-            This tool analyzes how a Lexington, MA property's 2024 assessment compares to
-            similar homes in town, using data I scraped from the
-            <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">Town of Lexington's Public Assessor's Database</a>.
-            Enter a Lexington address to see your property's assessment against recent sales
-            of similar houses, all town residences, and properties built around the same time
-            with similar living area.
-        </p>
+        <section class="hero">
+            <div class="hero-text">
+                <h1>Is your Lexington home <span class="accent">overvalued?</span></h1>
+                <p class="hero-lede">
+                    See how the town's 2024 assessment of your home compares to similar houses nearby.
+                </p>
+                <p class="hero-sub">
+                    Built on data from the town's public
+                    <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">assessor's database</a>.
+                </p>
+            </div>
+            <div class="hero-image">
+                <img src="{{ url_for('static', filename='undraw_hero_img.svg') }}" alt="House illustration">
+            </div>
+        </section>
 
-        <form method="POST" class="address-form">
-            <label for="address">Property address</label>
-            <input type="text"
-                   id="address"
-                   name="address"
-                   placeholder="e.g. 1 AARON RD"
-                   value="{{ submitted or '' }}"
-                   required
-                   autofocus>
-            <button type="submit">Generate Report</button>
+        <form method="POST" class="address-form" action="{{ url_for('index') }}" id="address-form" autocomplete="off">
+            <label for="address">Enter a Lexington property address</label>
+            <div class="search-row">
+                <div class="autocomplete">
+                    <input type="text"
+                           id="address"
+                           name="address"
+                           placeholder="e.g. 1 Aaron Rd"
+                           value="{{ submitted or '' }}"
+                           required
+                           autocomplete="off"
+                           spellcheck="false"
+                           autofocus>
+                    <ul id="suggestions" class="suggest-dropdown" role="listbox" hidden></ul>
+                </div>
+                <button type="submit">Compare my home</button>
+            </div>
+            <p class="example-hint">
+                <span class="example-label">Try:</span>
+                {% for ex in examples %}
+                    <button type="button" data-fill="{{ ex }}" class="example-chip">{{ ex.title() }}</button>{% if not loop.last %}<span class="example-sep">·</span>{% endif %}
+                {% endfor %}
+            </p>
         </form>
+
+        <script>
+            (function () {
+                const input = document.getElementById("address");
+                const dropdown = document.getElementById("suggestions");
+                const form = document.getElementById("address-form");
+                if (!input || !dropdown || !form) return;
+
+                let activeIndex = -1;
+                let items = [];
+                let debounce = null;
+
+                function close() {
+                    dropdown.hidden = true;
+                    dropdown.innerHTML = "";
+                    items = [];
+                    activeIndex = -1;
+                }
+
+                function render(matches) {
+                    if (!matches.length) { close(); return; }
+                    dropdown.innerHTML = matches
+                        .map((m, i) => `<li role="option" data-index="${i}">${m}</li>`)
+                        .join("");
+                    items = Array.from(dropdown.querySelectorAll("li"));
+                    dropdown.hidden = false;
+                    activeIndex = -1;
+                }
+
+                function highlight(index) {
+                    items.forEach((el, i) => el.classList.toggle("active", i === index));
+                    activeIndex = index;
+                }
+
+                async function fetchSuggestions(q) {
+                    try {
+                        const res = await fetch(`/suggest?q=${encodeURIComponent(q)}`);
+                        if (!res.ok) return close();
+                        render(await res.json());
+                    } catch (_) { close(); }
+                }
+
+                input.addEventListener("input", () => {
+                    const q = input.value.trim();
+                    clearTimeout(debounce);
+                    if (q.length < 2) { close(); return; }
+                    debounce = setTimeout(() => fetchSuggestions(q), 150);
+                });
+
+                input.addEventListener("keydown", (e) => {
+                    if (dropdown.hidden || !items.length) return;
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        highlight((activeIndex + 1) % items.length);
+                    } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        highlight((activeIndex - 1 + items.length) % items.length);
+                    } else if (e.key === "Enter" && activeIndex >= 0) {
+                        e.preventDefault();
+                        input.value = items[activeIndex].textContent;
+                        close();
+                        input.focus();
+                    } else if (e.key === "Escape") {
+                        close();
+                    }
+                });
+
+                dropdown.addEventListener("mousedown", (e) => {
+                    const li = e.target.closest("li");
+                    if (!li) return;
+                    e.preventDefault();
+                    input.value = li.textContent;
+                    close();
+                    input.focus();
+                });
+
+                // Example chips fill the input without submitting
+                document.querySelectorAll(".example-chip").forEach((chip) => {
+                    chip.addEventListener("click", () => {
+                        input.value = chip.dataset.fill;
+                        input.focus();
+                    });
+                });
+
+                document.addEventListener("click", (e) => {
+                    if (!form.contains(e.target)) close();
+                });
+
+                // When the page loads with a pre-filled address (post-report),
+                // focus + select-all so the next keystroke replaces it.
+                if (input.value) {
+                    input.focus();
+                    input.select();
+                }
+
+                // Select on focus too, so clicking back into a pre-filled input highlights it.
+                input.addEventListener("focus", () => {
+                    if (input.value) input.select();
+                });
+            })();
+        </script>
 
         {% if error %}
             <p class="error">{{ error }}</p>
@@ -36,9 +156,9 @@
                 <ul class="suggestions">
                     {% for s in suggestions %}
                         <li>
-                            <form method="POST" class="inline">
+                            <form method="POST" class="inline" action="{{ url_for('index') }}">
                                 <input type="hidden" name="address" value="{{ s }}">
-                                <button type="submit" class="link-button">{{ s }}</button>
+                                <button type="submit" class="link-button">{{ s.title() }}</button>
                             </form>
                         </li>
                     {% endfor %}
@@ -46,18 +166,57 @@
             {% endif %}
         {% endif %}
 
-        <section class="examples">
-            <h2>Try an example</h2>
-            <ul class="example-list">
-                {% for ex in examples %}
-                    <li>
-                        <form method="POST" class="inline">
-                            <input type="hidden" name="address" value="{{ ex }}">
-                            <button type="submit" class="link-button">{{ ex }}</button>
-                        </form>
-                    </li>
-                {% endfor %}
-            </ul>
+        <section class="about-project">
+            <h2>About this project</h2>
+            <div class="toggles">
+                <details>
+                    <summary>Why I Built This</summary>
+                    <div class="toggle-body">
+                        <p>
+                            I live in Lexington, MA. My family noticed that our property taxes increased significantly
+                            from 2023 to 2024, even though we made no changes to our house. I wanted to determine
+                            if this was part of a town-wide trend or a unique increase in the town's assessment of our property. If it was
+                            the latter, this data could help us file an abatement and possibly reduce
+                            our taxes.
+                        </p>
+                        <p>
+                            With the help of my analysis, I unfortunately concluded that it was indeed a proportional town-wide increase,
+                            so our taxes would have to stay :(
+                        </p>
+                        <p>
+                            I extended this tool to help any Lexington resident.
+                        </p>
+                    </div>
+                </details>
+                <details>
+                    <summary>What I Learned</summary>
+                    <div class="toggle-body">
+                        <ul>
+                            <li>Web scraping the town's database, collecting 35+ features per property.</li>
+                            <li>Multithreading to cut scraping time from 2 hours to under 10 minutes, with a lock to keep the shared DataFrame thread-safe.</li>
+                            <li>Using a correlation heatmap to isolate the features most predictive of assessment value, which guided which properties to treat as "similar."</li>
+                        </ul>
+                    </div>
+                </details>
+                <details>
+                    <summary>How the Analysis Works</summary>
+                    <div class="toggle-body">
+                        <p>
+                            For any Lexington address, the tool finds homes built within seven years of
+                            yours and within 300 sq ft of your living area, then ranks your 2024 assessment
+                            against that peer group. "Recent sales" are filtered to 2022–2024 so the
+                            comparison reflects current market values, not pre-pandemic pricing.
+                        </p>
+                        <p>
+                            The features most correlated with assessment value are Living Area,
+                            Building Percent Good, and Year Built — so those are what the comparison
+                            uses. Other factors (floor plan, kitchen quality, energy efficiency,
+                            proximity to the town center) aren't captured in the
+                            <a href="https://gis.vgsi.com/lexingtonma/" target="_blank" rel="noopener">assessor's database</a>.
+                        </p>
+                    </div>
+                </details>
+            </div>
         </section>
 
         <footer>
@@ -65,7 +224,6 @@
                 Built by Niti Goyal ·
                 <a href="{{ github_url }}" target="_blank" rel="noopener">View source on GitHub</a>
             </p>
-            <p class="note">First request after inactivity may take ~30 seconds while the server wakes up.</p>
         </footer>
     </main>
 </body>

@@ -7,7 +7,9 @@ import plotly.express as px
 
 import ast #to convert strings into dictionary
 import io
+import re
 import base64
+from io import StringIO
 import matplotlib
 matplotlib.use('Agg')  # Use a non-interactive backend
 import webbrowser
@@ -15,8 +17,43 @@ import sys
 import os
 
 
+def parse_valuation_history(raw):
+    """Parses a property's scraped 'Valuation History' string into a sorted
+    list of {'year': int, 'total': int}. Returns [] if parsing fails."""
+    if not isinstance(raw, str) or not raw.strip():
+        return []
+    try:
+        table = pd.read_csv(StringIO(raw), sep=r'\s+')
+        rows = []
+        for _, r in table.iterrows():
+            year = int(r["Year"])
+            total = int(re.sub(r"[^\d]", "", str(r["Total"])))
+            rows.append({"year": year, "total": total})
+        return sorted(rows, key=lambda x: x["year"])
+    except Exception:
+        return []
+
+
+#Theme colors (pulled from the undraw hero illustration)
+THEME_ACCENT = "#6c63ff"       # indigo — "similar" / other properties
+THEME_ACCENT_SOFT = "#a7a1ff"  # lighter indigo — trendlines, large-N scatter
+THEME_USER = "#ff6584"         # coral — the user's house
+THEME_TEXT = "#3f3d56"         # navy — axis labels, titles
+THEME_GRID = "#e4e3ec"         # light gray-purple — gridlines
+THEME_3D_SCALE = [              # indigo → coral gradient for the 3D plot
+    [0.0, "#3f3d56"],
+    [0.5, "#6c63ff"],
+    [1.0, "#ff6584"],
+]
+PLOTLY_LAYOUT = dict(
+    font=dict(family="-apple-system, Segoe UI, Roboto, sans-serif", color=THEME_TEXT),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+)
+
 #Load all Lexington property data
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "all_data.csv")
+_HEATMAP_PATH = os.path.join(os.path.dirname(__file__), "static", "correlation_heatmap.png")
 df = pd.read_csv(_DATA_PATH)
 
 def get_model_type (str_dict):
@@ -170,18 +207,22 @@ def main_program(your_house_row):
         print(f"Debug: Error while creating scatter plot: {e}")
         raise
 
-    # Update the color of the points to purple
-    fig1.update_traces(marker=dict(size=10, color='purple'))
+    # Color scatter points + trendline in theme colors
+    fig1.update_traces(selector=dict(mode="markers"),
+                       marker=dict(size=10, color=THEME_ACCENT))
+    fig1.update_traces(selector=dict(mode="lines"),
+                       line=dict(color=THEME_ACCENT_SOFT, width=2))
 
-    # Add the user's house as a yellow point
+    # Add the user's house as a coral point
     fig1.add_trace(go.Scatter(
         x=[your_living_area],
         y=[your_assessment],
         mode='markers',
         marker=dict(
-            size=10,
-            color='goldenrod',
-            opacity=0.9
+            size=12,
+            color=THEME_USER,
+            line=dict(color="white", width=2),
+            opacity=1,
         ),
         name="Your House Assessment",
         text=f"Address: {your_loc}<br>Style: {your_style}<br>Year Built: {your_yr_blt}<br>Building Percent Good: {your_bpg}<br>Assessment: {your_assessment:,}"
@@ -192,6 +233,9 @@ def main_program(your_house_row):
         margin=dict(l=0, r=0, b=0, t=40),
         xaxis_title='Living Area (Square Feet)',
         yaxis_title='Sale Price',
+        xaxis=dict(gridcolor=THEME_GRID, zerolinecolor=THEME_GRID),
+        yaxis=dict(gridcolor=THEME_GRID, zerolinecolor=THEME_GRID),
+        **PLOTLY_LAYOUT,
     )
 
     x_value_min = similar_sales['Living Area'].min() - 50
@@ -227,36 +271,23 @@ def main_program(your_house_row):
         else:
             compare_to_trendline = "equal to"
 
-        fig1text = \
-        f"""
-        Above: All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet. Your property's assessment is {compare_to_trendline} the prices of these other similar houses.
-        If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
-        """
+        fig1text = (
+            f"Recent sales of similar homes (built {yr_blt-7}–{yr_blt+8}, {living_area-300}–{living_area+300} sq ft). "
+            f"Your property's assessment is {compare_to_trendline} the sale prices of these similar houses. "
+            f"If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement."
+        )
     except Exception:
-        #Something went wrong with the trendline; print default text without comparison
-        fig1text = \
-        f"""
-        Above: All recent sales and market prices of similar properties built between {yr_blt-7} and {yr_blt+8}, with living areas between {living_area-300} and {living_area+300} square feet.
-        If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
-        """
+        compare_to_trendline = None
+        fig1text = (
+            f"Recent sales of similar homes (built {yr_blt-7}–{yr_blt+8}, {living_area-300}–{living_area+300} sq ft). "
+            f"If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement."
+        )
 
     #fig1.show()
 
-    #------Correlation Heatmap-------- 
-    numeric_df = df.select_dtypes(include='number')
-    corr_matrix = numeric_df.corr()
-    heatmap = sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f')
-    #plt.show() #Show the correlation plot
-
-    #Save the heatmap as a base64 image so it can be displayed later on the website
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format='png')
-    plt.close()
-    buffer.seek(0)
-    img_str = base64.b64encode(buffer.getvalue()).decode()
-
-    #plt.show()
-    #The features most correlated with assessment are Living Area, Building Percent Good, and Year Built
+    #Correlation heatmap is pre-computed at module load time (see bottom of file) —
+    #the top three features most correlated with assessment value are Living Area,
+    #Building Percent Good, and Year Built, which is what this report compares on.
 
     #------Display All Houses 3D Scatterplot----------
 
@@ -267,13 +298,13 @@ def main_program(your_house_row):
     df = df[df["Living Area"] > your_living_area - 4000]
 
     #Plot all houses
-    fig2=go.Figure(data=go.Scatter3d(x=df["Living Area"], y=df["Building Percent Good"], z=df["Current Assessment"], 
+    fig2=go.Figure(data=go.Scatter3d(x=df["Living Area"], y=df["Building Percent Good"], z=df["Current Assessment"],
                                     mode='markers', marker=dict(
-                                        size=10, color=df["Current Assessment"], colorscale='plotly3',
-                                        opacity=0.8, reversescale=True),text=df.apply(lambda row: f"Address: {row['Location']}<br>Style: {row['Building Style']}<br>Year Built: {row['Year Built']}", axis=1), name="Other House"))
+                                        size=5, color=df["Current Assessment"], colorscale=THEME_3D_SCALE,
+                                        opacity=0.7),text=df.apply(lambda row: f"Address: {row['Location']}<br>Style: {row['Building Style']}<br>Year Built: {row['Year Built']}", axis=1), name="Other House"))
 
 
-    # Add the user's house as a yellow point
+    # Add the user's house as a coral point
     fig2.add_trace(go.Scatter3d(
         x=[your_living_area],
         y=[your_bpg], #building percent good
@@ -281,8 +312,9 @@ def main_program(your_house_row):
         mode='markers',
         marker=dict(
             size=10,
-            color='goldenrod',
-            opacity=0.9
+            color=THEME_USER,
+            line=dict(color="white", width=2),
+            opacity=1,
         ),
         name='Your House',
         text=your_loc
@@ -293,10 +325,14 @@ def main_program(your_house_row):
                     scene=dict(
             xaxis_title='Living Area (Square Feet)',
             yaxis_title='Building Percent Good',
-            zaxis_title='2024 Assessment Value'
-        ), 
-        title = "All(*) Lexington Residences"
-                    )
+            zaxis_title='2024 Assessment Value',
+            xaxis=dict(gridcolor=THEME_GRID, backgroundcolor="white"),
+            yaxis=dict(gridcolor=THEME_GRID, backgroundcolor="white"),
+            zaxis=dict(gridcolor=THEME_GRID, backgroundcolor="white"),
+        ),
+        title="All(*) Lexington Residences",
+        **PLOTLY_LAYOUT,
+    )
 
 
     # #Add caption that I removed outliers for cleaner visualization
@@ -307,14 +343,11 @@ def main_program(your_house_row):
     #     font=dict(size=12)
     # )
 
-    fig2text = \
-    f"""
-    * Removed outliers for a clearer visualization. Hover over a property to view details.
-    The above graph plots Assessment Value against Living Area and Building Percent Good for all Lexington properties.
-    Generallly, as these factors increase, the assessment value increases.
-    You can see how your property lies compared to all other properties.  If you feel that your property is an outlier without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement.
-    
-    """
+    fig2text = (
+        "Explore all Lexington residences plotted by Living Area, Building Percent Good, and Assessment Value. "
+        "Hover over any point to see that property's details. "
+        "If you feel that your property is an outlier without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement."
+    )
 
     #fig2.show()
     #----------Boxplot-------------
@@ -335,7 +368,13 @@ def main_program(your_house_row):
         labels={"y": "2024 Assessment", "Category": ""},
         title="All Similar Properties Assessments",
         hover_name="Location",
-        hover_data=["Location", "Year Built", "Living Area", "Building Percent Good", "Building Style"]
+        hover_data=["Location", "Year Built", "Living Area", "Building Percent Good", "Building Style"],
+        color_discrete_sequence=[THEME_ACCENT],
+    )
+    fig3.update_layout(
+        xaxis=dict(gridcolor=THEME_GRID),
+        yaxis=dict(gridcolor=THEME_GRID, zerolinecolor=THEME_GRID),
+        **PLOTLY_LAYOUT,
     )
 
     # Add a single trace for the user's house
@@ -345,9 +384,10 @@ def main_program(your_house_row):
             y=[your_assessment],
             mode='markers',
             marker=dict(
-                size=10,
-                color='goldenrod',
-                opacity=0.9
+                size=12,
+                color=THEME_USER,
+                line=dict(color="white", width=2),
+                opacity=1,
             ),
             name='Your House',
             text=f"Location: {your_loc}<br>Year Built: {your_yr_blt}<br>Living Area: {your_living_area}<br>Building Percent Good: {your_bpg}<br>Building Style: {your_style}"
@@ -367,25 +407,113 @@ def main_program(your_house_row):
     else:
         comparison = "somewhat greater than others."
 
-    fig3text = \
-    f"""
-    Above: Lexington's assessment designations of all similar properties, built around the same time period as your property with similar living area measurements.\
-    Hover over a property to view details.
+    fig3text = (
+        f"All similar Lexington properties by 2024 assessment value. Your property's assessment is {comparison} "
+        f"If you feel that your property has been overvalued without any distinguishing reason compared to the other houses, you may consider talking to a town official or applying for an abatement."
+    )
 
-    Your property's assessment is {comparison}
+    analysis_text = (
+        "Based on the data analysis behind this report, the features most correlated with a property's assessment "
+        "are Living Area, Building Percent Good, and Year Built. Many other factors also affect assessment — "
+        "floor plan, kitchen style, number of rooms, energy efficiency, proximity to the town center and highways, "
+        "and historical value — that aren't captured here. "
+        "For a fuller picture of any property, see the"
+    )
 
-    Note: Comparing your property to the median may not lead to an accurate conclusion, as there may be more properties in one extreme of the living area range, skewing the results.
-    """
+    #--------Headline verdict: rank and percentile vs similar properties--------
+    similar_assessments = similar["Current Assessment"].dropna()
+    num_similar = len(similar_assessments)
+    rank = int((similar_assessments > your_assessment).sum()) + 1
+    percentile = int(round((similar_assessments <= your_assessment).mean() * 100)) if num_similar else 0
+    median_similar = int(similar_assessments.median()) if num_similar else 0
+    pct_vs_median = ((your_assessment - median_similar) / median_similar * 100) if median_similar else 0
 
-    analysis_text = \
-    """
-    Some background behind this report:\n
-    Based on some data analysis I did, the features most correlated with a property's Assessment Value are Living Area, Building Percent Good, and Year Built.
-    However, there are many other factors that affect assessment that are not captured in this report, including floor plan layout, kitchen style, number of rooms, extra features such as energy efficiency, distance to the town center and major highways, and historical value.
-    For a more holistic understanding of these factors for any house, you can view the Assessor's Database at https://gis.vgsi.com/lexingtonma/.
-    """
+    if pct_vs_median >= 5:
+        verdict_headline = f"~{abs(int(round(pct_vs_median)))}% higher than the median for similar homes"
+    elif pct_vs_median <= -5:
+        verdict_headline = f"~{abs(int(round(pct_vs_median)))}% lower than the median for similar homes"
+    else:
+        verdict_headline = "close to the median for similar homes"
 
-    return your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg, fig1, fig1text, fig2, fig2text, fig3, fig3text, analysis_text
+    verdict = {
+        "headline": verdict_headline,
+        "rank": rank,
+        "num_similar": num_similar,
+        "percentile": percentile,
+        "median_similar": median_similar,
+        "yr_range": f"{yr_blt-7}\u2013{yr_blt+8}",
+        "area_range": f"{living_area-300:,}\u2013{living_area+300:,}",
+    }
+
+    #--------Top 3 most similar recent sales (closest in living area)--------
+    comparables = []
+    if not similar_sales.empty:
+        closest = similar_sales.assign(
+            area_diff=(similar_sales["Living Area"] - your_living_area).abs()
+        ).sort_values("area_diff").head(3)
+        for _, row in closest.iterrows():
+            sale_date = row["Sale Date"]
+            comparables.append({
+                "location": row["Location"],
+                "sale_price": int(row["Sale Price"]),
+                "sale_year": int(row["Sale Year"]) if pd.notna(row["Sale Year"]) else None,
+                "living_area": int(row["Living Area"]),
+                "year_built": int(row["Year Built"]),
+                "style": row["Building Style"],
+                "assessment": int(row["Current Assessment"]),
+            })
+
+    #--------Valuation history sparkline data--------
+    valuation_history = parse_valuation_history(your_house_row.get("Valuation History"))
+
+    return {
+        "your_loc": your_loc,
+        "your_assessment": your_assessment,
+        "your_yr_blt": your_yr_blt,
+        "your_living_area": your_living_area,
+        "your_style": your_style,
+        "your_bpg": your_bpg,
+        "fig1": fig1,
+        "fig1text": fig1text,
+        "fig2": fig2,
+        "fig2text": fig2text,
+        "fig3": fig3,
+        "fig3text": fig3text,
+        "analysis_text": analysis_text,
+        "verdict": verdict,
+        "comparables": comparables,
+        "valuation_history": valuation_history,
+    }
+
+
+#----------- Pre-compute correlation heatmap once at module load -----------
+def _generate_correlation_heatmap():
+    """Generates the correlation heatmap PNG once, themed to match the site."""
+    if os.path.exists(_HEATMAP_PATH):
+        return
+    numeric_df = df.select_dtypes(include='number')
+    if "Unnamed: 0" in numeric_df.columns:
+        numeric_df = numeric_df.drop(columns=["Unnamed: 0"])
+    corr_matrix = numeric_df.corr()
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list(
+        "theme", [THEME_ACCENT, "#ffffff", THEME_USER]
+    )
+    fig, ax = plt.subplots(figsize=(7, 5.5))
+    sns.heatmap(
+        corr_matrix, annot=True, cmap=cmap, fmt='.2f',
+        vmin=-1, vmax=1, linewidths=0.5, linecolor="white",
+        cbar_kws={"shrink": 0.8}, annot_kws={"size": 8}, ax=ax,
+    )
+    ax.tick_params(colors=THEME_TEXT, labelsize=9)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(_HEATMAP_PATH), exist_ok=True)
+    plt.savefig(_HEATMAP_PATH, dpi=130, bbox_inches='tight')
+    plt.close(fig)
+
+
+_generate_correlation_heatmap()
 
 
 # ----------- Standalone Local Script -----------
@@ -398,10 +526,17 @@ def main():
         sys.exit(1)
     house_row = house_row.iloc[0]
     print(f"Generating report for {address}...")
-    (
-        your_loc, your_assessment, your_yr_blt, your_living_area, your_style, your_bpg,
-        fig1, fig1text, fig2, fig2text, fig3, fig3text, analysis_text
-    ) = main_program(house_row)
+    result = main_program(house_row)
+    your_loc = result["your_loc"]
+    your_assessment = result["your_assessment"]
+    your_yr_blt = result["your_yr_blt"]
+    your_living_area = result["your_living_area"]
+    your_style = result["your_style"]
+    your_bpg = result["your_bpg"]
+    fig1 = result["fig1"]; fig1text = result["fig1text"]
+    fig2 = result["fig2"]; fig2text = result["fig2text"]
+    fig3 = result["fig3"]; fig3text = result["fig3text"]
+    analysis_text = result["analysis_text"]
 
     html_content = f"""
     <html>
